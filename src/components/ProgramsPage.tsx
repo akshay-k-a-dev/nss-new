@@ -10,9 +10,11 @@ export const ProgramsPage: React.FC<ProgramsPageProps> = ({ programs }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState<'all' | 'upcoming' | 'completed'>('all');
 
+
   const filteredPrograms = programs.filter(program => {
-    const matchesSearch = program.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         program.description.toLowerCase().includes(searchTerm.toLowerCase());
+    const searchLower = searchTerm.toLowerCase();
+    const matchesSearch = program.title.toLowerCase().includes(searchLower) ||
+                         program.description.toLowerCase().includes(searchLower);
     
     const now = new Date();
     const programDate = new Date(program.date);
@@ -179,7 +181,7 @@ export const ProgramsPage: React.FC<ProgramsPageProps> = ({ programs }) => {
                         </div>
                         <div className="flex items-center space-x-2">
                           <User size={16} />
-                          <span>{program.coordinator}</span>
+                          <span>{program.coordinatorIds?.[0] || 'No coordinator assigned'}</span>
                         </div>
                       </div>
                     </div>

@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
-import { Plus, Edit, Trash2, Calendar, Clock, MapPin, User, Save, X, Users, Search, Check } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Plus, Edit, Trash2, Calendar, Clock, MapPin, User, Save, X, Users, Search, Check, FileDown } from 'lucide-react';
 import { Program, RegisteredStudent } from '../types';
+import { downloadAttendanceSheet, AttendeeEntry } from '../utils/attendanceSheetGenerator';
 
 interface TeacherPortalProps {
   programs: Program[];
@@ -35,6 +36,26 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
 
   const [showCoordinatorSelection, setShowCoordinatorSelection] = useState(false);
   const [selectedCoordinatorIds, setSelectedCoordinatorIds] = useState<string[]>([]);
+
+  // Department-wise attendance sheet UI state
+  const [showAttendanceSheet, setShowAttendanceSheet] = useState(false);
+  const [selectedDepartment, setSelectedDepartment] = useState<string>('');
+  const [selectedProgramIdForSheet, setSelectedProgramIdForSheet] = useState<string>('');
+  const [attendees, setAttendees] = useState<AttendeeEntry[]>([]);
+  const [newAttendeeName, setNewAttendeeName] = useState('');
+  const [newAttendeeRemark, setNewAttendeeRemark] = useState('');
+
+  // Auto-populate attendees when both department and program are selected
+  useEffect(() => {
+    const program = programs.find(p => p.id === selectedProgramIdForSheet);
+    if (!program || !selectedDepartment) return;
+    const participantSet = new Set(program.participantIds || []);
+    const initial = registeredStudents
+      .filter(s => s.department === selectedDepartment && participantSet.has(s.id))
+      .sort((a, b) => a.name.localeCompare(b.name))
+      .map(s => ({ name: s.name } as AttendeeEntry));
+    setAttendees(initial);
+  }, [selectedDepartment, selectedProgramIdForSheet, programs, registeredStudents]);
 
   const handleParticipantSelection = (programId: string) => {
     setShowParticipantSelection(programId);
@@ -155,13 +176,28 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
 
 
 
-        <div className="mb-6">
+        <div className="mb-6 flex flex-col sm:flex-row gap-3">
           <button
             onClick={() => setShowForm(true)}
             className="bg-blue-700 text-white px-6 py-3 rounded-lg hover:bg-blue-800 transition-colors flex items-center space-x-2 shadow-lg"
           >
             <Plus size={20} />
             <span>Add New Program</span>
+          </button>
+          <button
+            onClick={() => {
+              // Reset state so previous session details don't persist
+              setSelectedDepartment('');
+              setSelectedProgramIdForSheet('');
+              setAttendees([]);
+              setNewAttendeeName('');
+              setNewAttendeeRemark('');
+              setShowAttendanceSheet(true);
+            }}
+            className="bg-emerald-600 text-white px-6 py-3 rounded-lg hover:bg-emerald-700 transition-colors flex items-center space-x-2 shadow-lg"
+          >
+            <FileDown size={20} />
+            <span>Department-wise Attendance Sheet</span>
           </button>
         </div>
 
@@ -481,6 +517,165 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
                   >
                     <Check size={16} />
                     <span>Confirm Participants</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Department-wise Attendance Sheet Modal */}
+        {showAttendanceSheet && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-xl max-w-4xl w-full max-h-[85vh] overflow-hidden">
+              <div className="p-6 border-b border-gray-200">
+                <div className="flex justify-between items-center mb-4">
+                  <div>
+                    <h3 className="text-lg font-bold text-gray-900">Department-wise Attendance Sheet</h3>
+                    <p className="text-gray-600">Select department and program, manage list, then download</p>
+                  </div>
+                  <button onClick={() => setShowAttendanceSheet(false)} className="text-gray-500 hover:text-gray-700">
+                    <X size={24} />
+                  </button>
+                </div>
+
+                <div className="grid md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Department</label>
+                    <select
+                      value={selectedDepartment}
+                      onChange={(e) => setSelectedDepartment(e.target.value)}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    >
+                      <option value="">Select department</option>
+                      {Array.from(new Set(registeredStudents.map(s => s.department))).map((dept) => (
+                        <option key={dept} value={dept}>{dept}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Program</label>
+                    <select
+                      value={selectedProgramIdForSheet}
+                      onChange={(e) => setSelectedProgramIdForSheet(e.target.value)}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    >
+                      <option value="">Select program</option>
+                      {sortedPrograms.map(p => (
+                        <option key={p.id} value={p.id}>{p.title} — {new Date(p.date).toLocaleDateString()}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              <div className="p-6 overflow-y-auto max-h-[50vh]">
+                {/* Attendee editor */}
+                <div className="flex items-end gap-3 mb-4">
+                  <div className="flex-1">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Add Student Name</label>
+                    <input
+                      type="text"
+                      value={newAttendeeName}
+                      onChange={(e) => setNewAttendeeName(e.target.value)}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      placeholder="Enter full name"
+                    />
+                  </div>
+                  <div className="w-64">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Remark (optional)</label>
+                    <input
+                      type="text"
+                      value={newAttendeeRemark}
+                      onChange={(e) => setNewAttendeeRemark(e.target.value)}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      placeholder="e.g., Winner, Volunteer Lead"
+                    />
+                  </div>
+                  <button
+                    onClick={() => {
+                      const trimmed = newAttendeeName.trim();
+                      if (!trimmed) return;
+                      setAttendees(prev => [...prev, { name: trimmed, remark: newAttendeeRemark.trim() || undefined }]);
+                      setNewAttendeeName('');
+                      setNewAttendeeRemark('');
+                    }}
+                    className="px-5 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                  >
+                    Add
+                  </button>
+                </div>
+
+                {attendees.length === 0 ? (
+                  <div className="text-gray-500">No attendees added yet.</div>
+                ) : (
+                  <div className="space-y-2">
+                    {attendees.map((a, i) => (
+                      <div key={i} className="bg-gray-50 p-3 rounded-lg flex items-center gap-3">
+                        <div className="w-10 text-gray-500">{i + 1}.</div>
+                        <input
+                          type="text"
+                          value={a.name}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            setAttendees(prev => prev.map((x, idx) => idx === i ? { ...x, name: val } : x));
+                          }}
+                          className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        />
+                        <input
+                          type="text"
+                          value={a.remark || ''}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            setAttendees(prev => prev.map((x, idx) => idx === i ? { ...x, remark: val || undefined } : x));
+                          }}
+                          placeholder="Remark"
+                          className="w-64 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        />
+                        <button
+                          onClick={() => setAttendees(prev => prev.filter((_, idx) => idx !== i))}
+                          className="px-3 py-2 text-red-600 hover:bg-red-100 rounded-lg"
+                        >
+                          <Trash2 size={18} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div className="p-6 border-t border-gray-200 flex justify-between items-center">
+                <div className="text-sm text-gray-600">
+                  {attendees.length} attendee(s)
+                </div>
+                <div className="flex gap-3">
+                  <button onClick={() => {
+                    setShowAttendanceSheet(false);
+                    // Clear session entries when closing
+                    setAttendees([]);
+                    setNewAttendeeName('');
+                    setNewAttendeeRemark('');
+                  }} className="px-4 py-2 text-gray-600 hover:text-gray-800">Close</button>
+                  <button
+                    onClick={async () => {
+                      const program = programs.find(p => p.id === selectedProgramIdForSheet);
+                      if (!selectedDepartment || !program || attendees.length === 0) {
+                        alert('Please select department, program, and add at least one attendee.');
+                        return;
+                      }
+                      await downloadAttendanceSheet({ departmentName: selectedDepartment, program, attendees });
+                      // After confirming, clear details to avoid persisting on next open
+                      setAttendees([]);
+                      setNewAttendeeName('');
+                      setNewAttendeeRemark('');
+                      setSelectedDepartment('');
+                      setSelectedProgramIdForSheet('');
+                      setShowAttendanceSheet(false);
+                    }}
+                    className="bg-emerald-600 text-white px-6 py-2 rounded-lg hover:bg-emerald-700 transition-colors flex items-center space-x-2"
+                  >
+                    <FileDown size={16} />
+                    <span>Confirm & Download</span>
                   </button>
                 </div>
               </div>

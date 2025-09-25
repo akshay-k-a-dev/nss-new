@@ -22,7 +22,7 @@ export const Header: React.FC<HeaderProps> = ({
     setIsMobileMenuOpen(!isMobileMenuOpen);
   };
 
-  const handleMobileNavigation = (view: 'home' | 'programs' | 'login' | 'student' | 'coordinator' | 'officer') => {
+  const handleMobileNavigation = (view: 'home' | 'programs' | 'stories' | 'login' | 'student' | 'coordinator' | 'officer') => {
     onViewChange(view);
     setIsMobileMenuOpen(false);
   };
@@ -173,18 +173,30 @@ export const Header: React.FC<HeaderProps> = ({
                 Home
               </button>
 
-              {/* Programs Button - Only when NOT logged in */}
-              {!isLoggedIn && (
+              {/* Programs Button - shown for all users */}
+              <button
+                onClick={() => handleMobileNavigation('programs')}
+                className={`w-full text-left px-4 py-3 rounded-lg font-medium transition-all duration-200 flex items-center space-x-3 ${
+                  currentView === 'programs'
+                    ? 'bg-blue-700 text-white shadow-md'
+                    : 'text-gray-600 hover:text-blue-700 hover:bg-blue-50'
+                }`}
+              >
+                <Calendar size={20} />
+                <span>Programs</span>
+              </button>
+
+              {/* Stories Button - only when logged in */}
+              {isLoggedIn && (
                 <button
-                  onClick={() => handleMobileNavigation('programs')}
-                  className={`w-full text-left px-4 py-3 rounded-lg font-medium transition-all duration-200 flex items-center space-x-3 ${
-                    currentView === 'programs'
+                  onClick={() => handleMobileNavigation('stories')}
+                  className={`w-full text-left px-4 py-3 rounded-lg font-medium transition-all duration-200 ${
+                    currentView === 'stories'
                       ? 'bg-blue-700 text-white shadow-md'
                       : 'text-gray-600 hover:text-blue-700 hover:bg-blue-50'
                   }`}
                 >
-                  <Calendar size={20} />
-                  <span>Programs</span>
+                  Stories
                 </button>
               )}
 
