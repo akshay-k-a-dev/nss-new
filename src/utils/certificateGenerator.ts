@@ -1,235 +1,325 @@
 import { Certificate } from '../types';
 
+// Configuration constants
+const CANVAS_CONFIG = {
+  WIDTH: 1200,
+  HEIGHT: 850,
+  MARGIN: {
+    OUTER: 30,
+    INNER: 60,
+    CONTENT: 80,
+  },
+  COLORS: {
+    BACKGROUND: '#ffffff',
+    PRIMARY: '#1e40af',
+    SECONDARY: '#059669',
+    TEXT_DARK: '#374151',
+    TEXT_LIGHT: '#6b7280',
+    TEXT_LIGHTER: '#9ca3af',
+    HEADER_BG: '#f8fafc',
+  },
+  FONTS: {
+    HEADER_MAIN: 'bold 24px serif',
+    HEADER_SUB: 'bold 18px sans-serif',
+    TITLE: 'bold 44px serif',
+    NAME: 'bold 34px serif',
+    PROGRAM: 'bold 26px serif',
+    BODY: '22px serif',
+    BODY_MEDIUM: '20px serif',
+    DETAILS: '18px serif',
+    SIGNATURE: '16px serif',
+    SEAL: 'bold 12px sans-serif',
+  },
+  LOGO: {
+    COLLEGE_DIAMETER: 160,
+    NSS_DIAMETER: 110,
+    MIN_GAP: 16,
+  },
+  HEADER: {
+    Y: 100,
+    HEIGHT: 160,
+  },
+  BORDERS: {
+    OUTER_WIDTH: 12,
+    INNER_WIDTH: 4,
+    DECORATIVE_WIDTH: 3,
+  },
+};
+
+interface InstitutionConfig {
+  name: string;
+  subtitle: string;
+  programOfficerName: string;
+  collegeLogo?: string;
+  nssLogo?: string;
+}
+
+const DEFAULT_INSTITUTION: InstitutionConfig = {
+  name: 'MUHAMMED ABDURAHIMAN MEMORIAL ORPHANAGE COLLEGE',
+  subtitle: 'National Service Scheme (NSS)',
+  programOfficerName: 'Amrutha P',
+  nssLogo: '/download.png',
+  collegeLogo: '/mamo-logo.png',
+};
+
 const loadImage = (src: string): Promise<HTMLImageElement> => {
   return new Promise((resolve, reject) => {
     const img = new Image();
     img.crossOrigin = 'anonymous';
     img.onload = () => resolve(img);
-    img.onerror = (e) => reject(e);
+    img.onerror = reject;
     img.src = src;
   });
 };
 
-export const generateCertificateData = async (certificate: Certificate): Promise<string> => {
+const tryLoadImages = async (logoPath?: string, fallbackPaths: string[] = []): Promise<HTMLImageElement | null> => {
+  const paths = logoPath ? [logoPath, ...fallbackPaths] : fallbackPaths;
+  
+  for (const path of paths) {
+    try {
+      return await loadImage(path);
+    } catch {
+      continue;
+    }
+  }
+  return null;
+};
+
+const drawCircularImage = (
+  ctx: CanvasRenderingContext2D,
+  img: HTMLImageElement,
+  x: number,
+  y: number,
+  diameter: number
+): void => {
+  ctx.save();
+  ctx.beginPath();
+  ctx.arc(x, y, diameter / 2, 0, Math.PI * 2);
+  ctx.closePath();
+  ctx.clip();
+  ctx.drawImage(img, x - diameter / 2, y - diameter / 2, diameter, diameter);
+  ctx.restore();
+};
+
+const drawSeal = (
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  color: string,
+  line1: string,
+  line2: string
+): void => {
+  const radius = 40;
+  
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.arc(x, y, radius, 0, 2 * Math.PI);
+  ctx.stroke();
+  
+  ctx.fillStyle = color;
+  ctx.font = CANVAS_CONFIG.FONTS.SEAL;
+  ctx.textAlign = 'center';
+  ctx.fillText(line1, x, y - 5);
+  ctx.fillText(line2, x, y + 10);
+};
+
+export const generateCertificateData = async (
+  certificate: Certificate,
+  institutionConfig: InstitutionConfig = DEFAULT_INSTITUTION
+): Promise<string> => {
   const canvas = document.createElement('canvas');
   const ctx = canvas.getContext('2d');
-  if (!ctx) return '';
+  
+  if (!ctx) {
+    throw new Error('Unable to get canvas context');
+  }
 
-  // Canvas size
-  canvas.width = 1200;
-  canvas.height = 850;
+  const { WIDTH, HEIGHT, MARGIN, COLORS, FONTS, LOGO, HEADER, BORDERS } = CANVAS_CONFIG;
 
-  // White background
-  ctx.fillStyle = '#ffffff';
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  // Set canvas dimensions
+  canvas.width = WIDTH;
+  canvas.height = HEIGHT;
+
+  // Background
+  ctx.fillStyle = COLORS.BACKGROUND;
+  ctx.fillRect(0, 0, WIDTH, HEIGHT);
 
   // Outer border
-  ctx.strokeStyle = '#1e40af';
-  ctx.lineWidth = 12;
-  ctx.strokeRect(30, 30, canvas.width - 60, canvas.height - 60);
+  ctx.strokeStyle = COLORS.PRIMARY;
+  ctx.lineWidth = BORDERS.OUTER_WIDTH;
+  ctx.strokeRect(MARGIN.OUTER, MARGIN.OUTER, WIDTH - 2 * MARGIN.OUTER, HEIGHT - 2 * MARGIN.OUTER);
 
   // Inner border
-  ctx.strokeStyle = '#059669';
-  ctx.lineWidth = 4;
-  ctx.strokeRect(60, 60, canvas.width - 120, canvas.height - 120);
+  ctx.strokeStyle = COLORS.SECONDARY;
+  ctx.lineWidth = BORDERS.INNER_WIDTH;
+  ctx.strokeRect(MARGIN.INNER, MARGIN.INNER, WIDTH - 2 * MARGIN.INNER, HEIGHT - 2 * MARGIN.INNER);
 
-  // Header background band
-  const headerY = 100;
-  const headerHeight = 160;
-  ctx.fillStyle = '#f8fafc';
-  ctx.fillRect(80, headerY, canvas.width - 160, headerHeight);
+  // Header background
+  ctx.fillStyle = COLORS.HEADER_BG;
+  ctx.fillRect(MARGIN.CONTENT, HEADER.Y, WIDTH - 2 * MARGIN.CONTENT, HEADER.HEIGHT);
 
-  // Prepare college name font for measurement
-  ctx.font = 'bold 24px serif';
-  const collegeName = 'MUHAMMED ABDURAHIMAN MEMORIAL ORPHANAGE COLLEGE';
-  const centerX = canvas.width / 2;
-  const textWidth = ctx.measureText(collegeName).width;
+  // Load logos
+  const [collegeImg, nssImg] = await Promise.all([
+    tryLoadImages(institutionConfig.collegeLogo, ['/mamo%20logo.png', '/college-logo.png']),
+    tryLoadImages(institutionConfig.nssLogo, ['/download.png', '/nss-logo.png']),
+  ]);
+
+  // Calculate logo positions
+  const centerX = WIDTH / 2;
+  const headerCenterY = HEADER.Y + HEADER.HEIGHT / 2;
+
+  ctx.font = FONTS.HEADER_MAIN;
+  const textWidth = ctx.measureText(institutionConfig.name).width;
   const textLeft = centerX - textWidth / 2;
   const textRight = centerX + textWidth / 2;
 
-  // Try load logos from public folder
-  let nssImg: HTMLImageElement | null = null;
-  let collegeImg: HTMLImageElement | null = null;
-  try {
-    nssImg = await loadImage('/download.png'); // NSS logo (existing)
-  } catch {
-    nssImg = null;
-  }
-  try {
-    // prefer a safe filename without spaces; fall back to encoded name then a generic name
-    try {
-      collegeImg = await loadImage('/mamo-logo.png');
-    } catch {
-      try {
-        collegeImg = await loadImage('/mamo%20logo.png');
-      } catch {
-        collegeImg = await loadImage('/college-logo.png');
-      }
-    }
-  } catch {
-    collegeImg = null;
-  }
+  const leftLogoX = MARGIN.INNER + LOGO.COLLEGE_DIAMETER / 2 + 20;
+  const leftLogoRight = leftLogoX + LOGO.COLLEGE_DIAMETER / 2;
+  let logoTextGap = Math.max(textLeft - leftLogoRight, LOGO.MIN_GAP);
 
-  // Logo sizes and positions: college larger, NSS smaller
-  const collegeLogoDiameter = 160; // px
-  const nssLogoDiameter = 110; // px (smaller)
-  // initial left logo x based on inner margin
-  const leftLogoX = 60 + collegeLogoDiameter / 2 + 20; // left gap from inner border
-  const leftLogoY = headerY + headerHeight / 2;
+  const rightLogoX = textRight + logoTextGap + LOGO.NSS_DIAMETER / 2;
 
-  // compute symmetric gap between logos and text edges
-  const leftLogoRight = leftLogoX + collegeLogoDiameter / 2;
-  let leftGap = textLeft - leftLogoRight;
-  if (leftGap < 16) leftGap = 16; // ensure a minimum gap
-
-  // position right logo so right gap equals leftGap
-  const rightLogoLeftDesired = textRight + leftGap;
-  const rightLogoX = rightLogoLeftDesired + nssLogoDiameter / 2;
-  const rightLogoY = leftLogoY;
-
-  // Draw college logo (left) as circle
+  // Draw logos
   if (collegeImg) {
-    ctx.save();
-    ctx.beginPath();
-    ctx.arc(leftLogoX, leftLogoY, collegeLogoDiameter / 2, 0, Math.PI * 2);
-    ctx.closePath();
-    ctx.clip();
-    // draw image centered in that circle
-    ctx.drawImage(collegeImg, leftLogoX - collegeLogoDiameter / 2, leftLogoY - collegeLogoDiameter / 2, collegeLogoDiameter, collegeLogoDiameter);
-    ctx.restore();
+    drawCircularImage(ctx, collegeImg, leftLogoX, headerCenterY, LOGO.COLLEGE_DIAMETER);
   }
-
-  // Draw NSS logo (right) as circle
   if (nssImg) {
-    ctx.save();
-    ctx.beginPath();
-    ctx.arc(rightLogoX, rightLogoY, nssLogoDiameter / 2, 0, Math.PI * 2);
-    ctx.closePath();
-    ctx.clip();
-    ctx.drawImage(nssImg, rightLogoX - nssLogoDiameter / 2, rightLogoY - nssLogoDiameter / 2, nssLogoDiameter, nssLogoDiameter);
-    ctx.restore();
+    drawCircularImage(ctx, nssImg, rightLogoX, headerCenterY, LOGO.NSS_DIAMETER);
   }
 
-  // College/Institution Header (centered) - ensure text fits between logos
-  ctx.fillStyle = '#1e40af';
+  // Header text
+  ctx.fillStyle = COLORS.PRIMARY;
   ctx.textAlign = 'center';
-  const headerCenterY = headerY + headerHeight / 2;
-  ctx.fillText(collegeName, centerX, headerCenterY - 8);
+  ctx.font = FONTS.HEADER_MAIN;
+  ctx.fillText(institutionConfig.name, centerX, headerCenterY - 8);
 
-  // NSS subtitle
-  ctx.fillStyle = '#059669';
-  ctx.font = 'bold 18px sans-serif';
-  ctx.fillText('National Service Scheme (NSS)', centerX, headerCenterY + 18);
+  ctx.fillStyle = COLORS.SECONDARY;
+  ctx.font = FONTS.HEADER_SUB;
+  ctx.fillText(institutionConfig.subtitle, centerX, headerCenterY + 18);
 
-  // Certificate Title (moved below header band)
-  const titleY = headerY + headerHeight + 30; // leave space after header
-  ctx.fillStyle = '#1e40af';
-  ctx.font = 'bold 44px serif';
+  // Certificate title
+  const titleY = HEADER.Y + HEADER.HEIGHT + 30;
+  ctx.fillStyle = COLORS.PRIMARY;
+  ctx.font = FONTS.TITLE;
   ctx.fillText('CERTIFICATE OF PARTICIPATION', centerX, titleY);
 
-  // Decorative line under title
-  ctx.strokeStyle = '#059669';
-  ctx.lineWidth = 3;
+  // Decorative line
+  ctx.strokeStyle = COLORS.SECONDARY;
+  ctx.lineWidth = BORDERS.DECORATIVE_WIDTH;
   ctx.beginPath();
   ctx.moveTo(300, titleY + 20);
-  ctx.lineTo(canvas.width - 300, titleY + 20);
+  ctx.lineTo(WIDTH - 300, titleY + 20);
   ctx.stroke();
 
-  // Main content
-  ctx.fillStyle = '#374151';
-  ctx.font = '22px serif';
-  const contentStartY = titleY + 60;
-  // use contentStartY for positioning the certificate text block
-  ctx.fillText('This is to certify that', centerX, contentStartY);
+  // Certificate content
+  const contentY = titleY + 60;
+  
+  ctx.fillStyle = COLORS.TEXT_DARK;
+  ctx.font = FONTS.BODY;
+  ctx.fillText('This is to certify that', centerX, contentY);
 
-  // Student name
-  ctx.fillStyle = '#1e40af';
-  ctx.font = 'bold 34px serif';
-  ctx.fillText(certificate.studentName, centerX, contentStartY + 50);
+  ctx.fillStyle = COLORS.PRIMARY;
+  ctx.font = FONTS.NAME;
+  ctx.fillText(certificate.studentName, centerX, contentY + 50);
 
-  // Department
-  ctx.fillStyle = '#059669';
-  ctx.font = '18px serif';
-  ctx.fillText(`Department of ${certificate.studentDepartment}`, centerX, contentStartY + 80);
+  ctx.fillStyle = COLORS.SECONDARY;
+  ctx.font = FONTS.DETAILS;
+  ctx.fillText(`Department of ${certificate.studentDepartment}`, centerX, contentY + 80);
 
-  // Participation line
-  ctx.fillStyle = '#374151';
-  ctx.font = '20px serif';
-  ctx.fillText('has successfully participated in', centerX, contentStartY + 120);
+  ctx.fillStyle = COLORS.TEXT_DARK;
+  ctx.font = FONTS.BODY_MEDIUM;
+  ctx.fillText('has successfully participated in', centerX, contentY + 120);
 
-  // Program title
-  ctx.fillStyle = '#059669';
-  ctx.font = 'bold 26px serif';
-  ctx.fillText(certificate.programTitle, centerX, contentStartY + 165);
+  ctx.fillStyle = COLORS.SECONDARY;
+  ctx.font = FONTS.PROGRAM;
+  ctx.fillText(certificate.programTitle, centerX, contentY + 165);
 
-  // Program details
-  ctx.fillStyle = '#374151';
-  ctx.font = '18px serif';
-  const programDateStr = new Date(certificate.date).toLocaleDateString('en-IN', {
-    day: 'numeric', month: 'long', year: 'numeric'
+  ctx.fillStyle = COLORS.TEXT_DARK;
+  ctx.font = FONTS.DETAILS;
+  const programDate = new Date(certificate.date).toLocaleDateString('en-IN', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
   });
-  ctx.fillText(`held on ${programDateStr} at ${certificate.time}`, centerX, contentStartY + 200);
-  ctx.fillText(`Venue: ${certificate.venue}`, centerX, contentStartY + 230);
+  ctx.fillText(`held on ${programDate} at ${certificate.time}`, centerX, contentY + 200);
+  ctx.fillText(`Venue: ${certificate.venue}`, centerX, contentY + 230);
 
-  // Signature section
-  ctx.fillStyle = '#6b7280';
-  ctx.font = '16px serif';
+  // Signatures
+  ctx.fillStyle = COLORS.TEXT_LIGHT;
+  ctx.font = FONTS.SIGNATURE;
   ctx.textAlign = 'left';
 
-  // Left signature
-  ctx.fillText('Program Coordinator', 180, canvas.height - 170);
-  ctx.fillText(certificate.coordinator, 180, canvas.height - 140);
+  const signatureY = HEIGHT - 170;
+  const signatureLineY = HEIGHT - 120;
+
+  // Left signature - Dr. Riyas K
+  ctx.fillText('Amrutha P', 180, signatureY);
+  ctx.fillText('NSS Program Officer', 180, signatureY + 30);
   ctx.beginPath();
-  ctx.moveTo(160, canvas.height - 120);
-  ctx.lineTo(340, canvas.height - 120);
-  ctx.strokeStyle = '#9ca3af';
+  ctx.moveTo(160, signatureLineY);
+  ctx.lineTo(340, signatureLineY);
+  ctx.strokeStyle = COLORS.TEXT_LIGHTER;
   ctx.lineWidth = 1;
   ctx.stroke();
 
-  // Right signature
-  ctx.fillText('NSS Program Officer', canvas.width - 360, canvas.height - 170);
-  ctx.fillText('Dr. Academic Head', canvas.width - 360, canvas.height - 140);
+  // Right signature - Amrutha P
+  ctx.fillText('Dr. Riyas K', WIDTH - 360, signatureY);
+  ctx.fillText('NSS Program Officer', WIDTH - 360, signatureY + 30);
   ctx.beginPath();
-  ctx.moveTo(canvas.width - 380, canvas.height - 120);
-  ctx.lineTo(canvas.width - 200, canvas.height - 120);
+  ctx.moveTo(WIDTH - 380, signatureLineY);
+  ctx.lineTo(WIDTH - 200, signatureLineY);
   ctx.stroke();
 
-  // Left official seal (if college logo not used)
-  ctx.strokeStyle = '#1e40af';
-  ctx.lineWidth = 3;
-  ctx.beginPath();
-  ctx.arc(250, canvas.height - 200, 40, 0, 2 * Math.PI);
-  ctx.stroke();
-  ctx.fillStyle = '#1e40af';
-  ctx.font = 'bold 12px sans-serif';
+  // Seals
+  drawSeal(ctx, 250, HEIGHT - 200, COLORS.PRIMARY, 'OFFICIAL', 'SEAL');
+  drawSeal(ctx, WIDTH - 250, HEIGHT - 200, COLORS.SECONDARY, 'COLLEGE', 'SEAL');
+
+  // Diagonal Watermark
+  ctx.save();
+  ctx.translate(centerX, HEIGHT / 2);
+  ctx.rotate(-Math.PI / 6); // -30 degrees
+  ctx.fillStyle = 'rgba(30, 64, 175, 0.03)'; // Very subtle blue
+  ctx.font = 'bold 72px serif';
   ctx.textAlign = 'center';
-  ctx.fillText('OFFICIAL', 250, canvas.height - 205);
-  ctx.fillText('SEAL', 250, canvas.height - 190);
-
-  // Right college seal (if college logo not used)
-  ctx.strokeStyle = '#059669';
-  ctx.beginPath();
-  ctx.arc(canvas.width - 250, canvas.height - 200, 40, 0, 2 * Math.PI);
-  ctx.stroke();
-  ctx.fillStyle = '#059669';
-  ctx.fillText('COLLEGE', canvas.width - 250, canvas.height - 205);
-  ctx.fillText('SEAL', canvas.width - 250, canvas.height - 190);
+  ctx.textBaseline = 'middle';
+  
+  // Draw multiple overlapping watermarks for better coverage
+  const watermarkText = institutionConfig.name;
+  ctx.fillText(watermarkText, 0, -150);
+  ctx.fillText(watermarkText, 0, 0);
+  ctx.fillText(watermarkText, 0, 150);
+  
+  ctx.restore();
 
   // Date of issue
-  ctx.fillStyle = '#6b7280';
-  ctx.font = '16px serif';
+  ctx.fillStyle = COLORS.TEXT_LIGHT;
+  ctx.font = FONTS.SIGNATURE;
   ctx.textAlign = 'center';
-  ctx.fillText(`Date of Issue: ${new Date().toLocaleDateString('en-IN')}`, centerX, canvas.height - 50);
+  const issueDate = new Date().toLocaleDateString('en-IN');
+  ctx.fillText(`Date of Issue: ${issueDate}`, centerX, HEIGHT - 50);
 
   return canvas.toDataURL('image/png');
 };
 
-export const downloadCertificate = async (certificate: Certificate): Promise<void> => {
-  const dataUrl = await generateCertificateData(certificate);
-  const link = document.createElement('a');
-  link.download = `${certificate.studentName.replace(/\s+/g, '_')}_${certificate.programTitle.replace(/\s+/g, '_')}_Certificate.png`;
-  link.href = dataUrl;
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
+export const downloadCertificate = async (
+  certificate: Certificate,
+  institutionConfig?: InstitutionConfig
+): Promise<void> => {
+  try {
+    const dataUrl = await generateCertificateData(certificate, institutionConfig);
+    const link = document.createElement('a');
+    const filename = `${certificate.studentName}_${certificate.programTitle}_Certificate.png`
+      .replace(/\s+/g, '_')
+      .replace(/[^a-zA-Z0-9_.-]/g, '');
+    
+    link.download = filename;
+    link.href = dataUrl;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  } catch (error) {
+    console.error('Failed to download certificate:', error);
+    throw new Error('Certificate download failed');
+  }
 };
