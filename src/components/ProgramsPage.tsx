@@ -32,6 +32,46 @@ export const ProgramsPage: React.FC<ProgramsPageProps> = ({ programs }) => {
   const completedCount = programs.filter(p => new Date(p.date) < new Date()).length;
   const totalParticipants = programs.reduce((sum, program) => sum + (program.participantIds?.length || 0), 0);
 
+  const statColorClasses = {
+    blue: {
+      number: 'text-blue-600',
+      iconBg: 'bg-blue-100',
+      iconText: 'text-blue-700',
+      gradient: 'from-blue-600 to-blue-400',
+    },
+    emerald: {
+      number: 'text-emerald-600',
+      iconBg: 'bg-emerald-100',
+      iconText: 'text-emerald-700',
+      gradient: 'from-emerald-600 to-emerald-400',
+    },
+    gray: {
+      number: 'text-gray-600',
+      iconBg: 'bg-gray-100',
+      iconText: 'text-gray-700',
+      gradient: 'from-gray-600 to-gray-400',
+    },
+    orange: {
+      number: 'text-orange-600',
+      iconBg: 'bg-orange-100',
+      iconText: 'text-orange-700',
+      gradient: 'from-orange-600 to-orange-400',
+    },
+  } as const;
+
+  const statCardConfigs = [
+    { label: 'Total Programs', key: 'total', icon: Calendar, color: 'blue', delay: '0s' },
+    { label: 'Upcoming', key: 'upcoming', icon: Clock, color: 'emerald', delay: '0.1s' },
+    { label: 'Completed', key: 'completed', icon: Calendar, color: 'gray', delay: '0.2s' },
+    { label: 'Total Participants', key: 'participants', icon: Users, color: 'orange', delay: '0.3s' }
+  ] satisfies Array<{
+    label: string;
+    key: keyof typeof animatedStats;
+    icon: typeof Calendar;
+    color: keyof typeof statColorClasses;
+    delay: string;
+  }>;
+
   useEffect(() => {
     setIsVisible(true);
     const handleMouseMove = (e: MouseEvent) => {
@@ -120,13 +160,10 @@ export const ProgramsPage: React.FC<ProgramsPageProps> = ({ programs }) => {
 
         {/* Stats Cards */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-6 mb-8 sm:mb-12">
-          {[
-            { label: 'Total Programs', value: animatedStats.total, icon: Calendar, color: 'blue', delay: '0s' },
-            { label: 'Upcoming', value: animatedStats.upcoming, icon: Clock, color: 'emerald', delay: '0.1s' },
-            { label: 'Completed', value: animatedStats.completed, icon: Calendar, color: 'gray', delay: '0.2s' },
-            { label: 'Total Participants', value: animatedStats.participants, icon: Users, color: 'orange', delay: '0.3s' }
-          ].map((stat, idx) => {
+          {statCardConfigs.map((stat, idx) => {
             const Icon = stat.icon;
+            const colorClasses = statColorClasses[stat.color];
+            const value = animatedStats[stat.key as keyof typeof animatedStats];
             return (
               <div
                 key={idx}
@@ -138,15 +175,15 @@ export const ProgramsPage: React.FC<ProgramsPageProps> = ({ programs }) => {
                   <div className="flex items-center justify-between mb-2 sm:mb-3">
                     <div>
                       <p className="text-gray-600 text-xs sm:text-sm font-medium">{stat.label}</p>
-                      <p className={`text-2xl sm:text-3xl md:text-4xl font-bold text-${stat.color}-600 animate-count-up`}>
-                        {stat.value}
+                      <p className={`text-2xl sm:text-3xl md:text-4xl font-bold ${colorClasses.number} animate-count-up`}>
+                        {value}
                       </p>
                     </div>
-                    <div className={`bg-${stat.color}-100 p-2 sm:p-3 rounded-xl sm:rounded-2xl group-hover:scale-110 group-hover:rotate-6 transition-all duration-300`}>
-                      <Icon className={`text-${stat.color}-700`} size={20} />
+                    <div className={`${colorClasses.iconBg} p-2 sm:p-3 rounded-xl sm:rounded-2xl group-hover:scale-110 group-hover:rotate-6 transition-all duration-300`}>
+                      <Icon className={`${colorClasses.iconText}`} size={20} />
                     </div>
                   </div>
-                  <div className={`h-1 bg-gradient-to-r from-${stat.color}-600 to-${stat.color}-400 rounded-full transform scale-x-0 group-hover:scale-x-100 transition-transform duration-500 origin-left`}></div>
+                  <div className={`h-1 bg-gradient-to-r ${colorClasses.gradient} rounded-full transform scale-x-0 group-hover:scale-x-100 transition-transform duration-500 origin-left`}></div>
                 </div>
               </div>
             );

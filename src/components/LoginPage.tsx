@@ -25,8 +25,10 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin, onBack }) => {
     return () => window.removeEventListener('mousemove', handleMouseMove);
   }, []);
 
-  const handleSubmit = async (e: React.MouseEvent) => {
-    e.preventDefault();
+  const handleSubmit = async (
+    e?: React.MouseEvent<HTMLButtonElement> | React.KeyboardEvent<HTMLInputElement>
+  ) => {
+    e?.preventDefault();
     setError('');
     
     if (!credentials.id || !credentials.password) {
@@ -42,10 +44,11 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin, onBack }) => {
     try {
       await onLogin(credentials);
       // Keep isLoggingIn true if successful - parent will handle navigation
-    } catch (err: any) {
+    } catch (err: unknown) {
       // If login fails, stop the animation and show error
       setIsLoggingIn(false);
-      setError(err.message || 'Invalid ID or password. Please try again.');
+      const message = err instanceof Error ? err.message : 'Invalid ID or password. Please try again.';
+      setError(message);
     }
   };
 
@@ -151,7 +154,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin, onBack }) => {
                     onBlur={() => setFocusedField(null)}
                     onKeyDown={(e) => {
                       if (e.key === 'Enter') {
-                        handleSubmit(e as any);
+                        handleSubmit(e);
                       }
                     }}
                     className={`w-full px-4 py-3 sm:py-4 pr-12 border-2 rounded-xl transition-all duration-300 ${

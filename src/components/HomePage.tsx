@@ -75,6 +75,36 @@ export const HomePage: React.FC<HomePageProps> = ({ programs }) => {
     .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
     .slice(0, 3);
 
+  const missionColorClasses = {
+    blue: { bg: 'bg-blue-100', text: 'text-blue-700' },
+    emerald: { bg: 'bg-emerald-100', text: 'text-emerald-700' },
+    orange: { bg: 'bg-orange-100', text: 'text-orange-700' },
+  } as const;
+
+  const missionItems = [
+    {
+      icon: User,
+      color: 'blue',
+      title: 'Community Service',
+      desc: 'Engaging in meaningful community service projects that address local needs and create lasting positive impact.',
+      delay: '0s'
+    },
+    {
+      icon: Award,
+      color: 'emerald',
+      title: 'Leadership Development',
+      desc: 'Building leadership skills through hands-on experience in organizing and managing community service initiatives.',
+      delay: '0.2s'
+    },
+    {
+      icon: Calendar,
+      color: 'orange',
+      title: 'Regular Programs',
+      desc: 'Consistent programming throughout the year including camps, workshops, and awareness drives.',
+      delay: '0.4s'
+    }
+  ] as const;
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50 to-emerald-50">
       {/* Hero Section with Parallax */}
@@ -239,6 +269,7 @@ export const HomePage: React.FC<HomePageProps> = ({ programs }) => {
             }
           ].map((item, idx) => {
             const Icon = item.icon;
+            const colorClasses = missionColorClasses[item.color];
             return (
               <div
                 key={idx}
@@ -249,8 +280,8 @@ export const HomePage: React.FC<HomePageProps> = ({ programs }) => {
               >
                 <div className="absolute inset-0 bg-gradient-to-br from-blue-50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
                 <div className="relative z-10">
-                <div className={`bg-${item.color}-100 w-20 h-20 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 group-hover:rotate-6 transition-all duration-300 shadow-lg`}>
-                  <Icon className={`text-${item.color}-700`} size={32} />
+                <div className={`${colorClasses.bg} w-20 h-20 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 group-hover:rotate-6 transition-all duration-300 shadow-lg`}>
+                  <Icon className={`${colorClasses.text}`} size={32} />
                 </div>
                 <h3 className="text-2xl font-bold text-gray-900 mb-4">{item.title}</h3>
                 <p className="text-gray-600 leading-relaxed">{item.desc}</p>

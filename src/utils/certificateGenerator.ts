@@ -176,7 +176,7 @@ export const generateCertificateData = async (
 
   const leftLogoX = MARGIN.INNER + LOGO.COLLEGE_DIAMETER / 2 + 20;
   const leftLogoRight = leftLogoX + LOGO.COLLEGE_DIAMETER / 2;
-  let logoTextGap = Math.max(textLeft - leftLogoRight, LOGO.MIN_GAP);
+  const logoTextGap = Math.max(textLeft - leftLogoRight, LOGO.MIN_GAP);
 
   const rightLogoX = textRight + logoTextGap + LOGO.NSS_DIAMETER / 2;
 
