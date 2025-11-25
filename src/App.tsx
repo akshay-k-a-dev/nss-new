@@ -6,7 +6,7 @@ import { StudentPortal } from './components/StudentPortal';
 import { ProgramOfficerPortal } from './components/ProgramOfficerPortal';
 import { LoginPage } from './components/LoginPage';
 import { ProgramsPage } from './components/ProgramsPage';
-import { StoryBatch, StoryAlbum, StoryMediaItem } from './types';
+import { StoryBatch, StoryMediaItem } from './types';
 import { mockPrograms } from './data/mockData';
 import { Program, RegisteredStudent, Coordinator, StudentReport, Department } from './types';
 
@@ -454,7 +454,7 @@ function App() {
                 onToggleFeatured={(batchId, mediaId) => {
                   setStoryBatches(prev => prev.map(b => b.id === batchId ? { ...b, featuredMediaIds: b.featuredMediaIds.includes(mediaId) ? b.featuredMediaIds.filter(id => id !== mediaId) : [...b.featuredMediaIds, mediaId] } : b));
                 }}
-                onMergeCurrentAlbumToSingle={(batchId) => {
+                onMergeCurrentAlbumToSingle={() => {
                   // No-op placeholder; UI will just present action confirmation
                 }}
               />

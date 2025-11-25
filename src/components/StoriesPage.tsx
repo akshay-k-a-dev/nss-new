@@ -17,9 +17,10 @@ type FolderItem = {
 };
 
 type NodeItem = FolderItem | FileItem;
+type StoriesPageProps = { canManage?: boolean } & Record<string, unknown>;
 
-// Accept any props to stay compatible with existing lazy import usage
-export const StoriesPage: React.FC<{ canManage?: boolean } & Record<string, any>> = ({ canManage = false }) => {
+// Accept extra props to stay compatible with existing lazy import usage
+export const StoriesPage: React.FC<StoriesPageProps> = ({ canManage = false }) => {
   const [root, setRoot] = useState<FolderItem>({
     id: 'root',
     name: 'Root',

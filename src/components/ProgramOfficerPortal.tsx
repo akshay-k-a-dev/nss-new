@@ -7,7 +7,7 @@ interface ProgramOfficerPortalProps {
   coordinators: Coordinator[];
   departments: import('../types').Department[];
   programs: import('../types').Program[];
-  onAddStudent: (student: Omit<RegisteredStudent, 'id' | 'createdAt'>) => void;
+  onAddStudent: (student: Omit<RegisteredStudent, 'createdAt'>) => void;
   onAddCoordinator: (coordinator: Omit<Coordinator, 'id' | 'createdAt'>) => void;
   onToggleCoordinatorAccess: (id: string) => void;
   onDeleteStudent: (id: string) => void;
@@ -123,14 +123,14 @@ export const ProgramOfficerPortal: React.FC<ProgramOfficerPortalProps> = ({
       alert('This ID is already in use. Please choose another.');
       return;
     }
-    const newStudent = {
+    const newStudent: Omit<RegisteredStudent, 'createdAt'> = {
       id: studentForm.id,
       name: studentForm.name,
       department: studentForm.department,
       password: studentForm.password,
       profileImageUrl: studentForm.profileImageUrl || undefined,
     };
-    onAddStudent(newStudent as any);
+    onAddStudent(newStudent);
     setStudentForm({ id: '', name: '', department: '', password: '', profileImageUrl: '' });
     setShowForm(false);
   };

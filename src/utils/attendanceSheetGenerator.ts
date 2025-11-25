@@ -40,11 +40,20 @@ const drawPage = async (
   // Load logos
   let nssImg: HTMLImageElement | null = null;
   let collegeImg: HTMLImageElement | null = null;
-  try { nssImg = await loadImage('/download.png'); } catch {}
   try {
-    try { collegeImg = await loadImage('/mamo-logo.png'); }
-    catch { try { collegeImg = await loadImage('/mamo%20logo.png'); } catch { collegeImg = await loadImage('/college-logo.png'); } }
-  } catch {}
+    nssImg = await loadImage('/download.png');
+  } catch (error) {
+    console.warn('Failed to load NSS logo', error);
+  }
+  const collegeSources = ['/mamo-logo.png', '/mamo%20logo.png', '/college-logo.png'];
+  for (const src of collegeSources) {
+    if (collegeImg) break;
+    try {
+      collegeImg = await loadImage(src);
+    } catch (error) {
+      console.warn(`Failed to load college logo from ${src}`, error);
+    }
+  }
 
   // Draw logos
   const leftLogoX = 90, leftLogoY = headerY + headerHeight / 2, leftR = 70;
