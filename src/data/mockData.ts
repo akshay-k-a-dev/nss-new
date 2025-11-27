@@ -9,6 +9,7 @@ export const mockPrograms: Program[] = [
     time: '09:00',
     venue: 'College Auditorium',
     coordinator: 'Dr. Sarah Johnson',
+    coordinatorIds: ['STU-101', 'STU-107'],
     createdAt: '2025-01-10T10:00:00Z',
     updatedAt: '2025-01-10T10:00:00Z'
   },
@@ -20,6 +21,7 @@ export const mockPrograms: Program[] = [
     time: '14:00',
     venue: 'Science Building - Room 301',
     coordinator: 'Prof. Michael Chen',
+    coordinatorIds: ['STU-205'],
     createdAt: '2025-01-08T15:30:00Z',
     updatedAt: '2025-01-08T15:30:00Z'
   },
@@ -31,6 +33,7 @@ export const mockPrograms: Program[] = [
     time: '07:00',
     venue: 'Main Campus Gate',
     coordinator: 'Ms. Emily Rodriguez',
+    coordinatorIds: ['STU-310', 'STU-318'],
     createdAt: '2025-01-05T09:15:00Z',
     updatedAt: '2025-01-05T09:15:00Z'
   },
@@ -42,6 +45,7 @@ export const mockPrograms: Program[] = [
     time: '10:00',
     venue: 'Computer Lab A',
     coordinator: 'Dr. Rajesh Patel',
+    coordinatorIds: ['STU-410'],
     createdAt: '2025-01-03T12:20:00Z',
     updatedAt: '2025-01-03T12:20:00Z'
   }

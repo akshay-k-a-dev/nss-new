@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Calendar, LogIn, LogOut, Menu, X } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Calendar, LogIn, LogOut } from 'lucide-react';
 
 interface HeaderProps {
   currentView: 'home' | 'programs' | 'stories' | 'login' | 'student' | 'coordinator' | 'officer';
@@ -17,6 +17,35 @@ export const Header: React.FC<HeaderProps> = ({
   userInfo 
 }) => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [currentTextIndex, setCurrentTextIndex] = useState(0);
+
+  const headerTexts = [
+    {
+      primary: "MUHAMMED ABDURAHIMAN MEMORIAL",
+      secondary: "ORPHANAGE (MAMO) COLLEGE, MUKKAM",
+      showCollegeLogo: true,
+      showNSSLogo: false
+    },
+    {
+      primary: "NATIONAL SERVICE SCHEME",
+      secondary: "NSS MAMOC",
+      showCollegeLogo: false,
+      showNSSLogo: true
+    },
+    {
+      primary: "NSS MAMOC",
+      secondary: "National Service Scheme",
+      showCollegeLogo: true,
+      showNSSLogo: true
+    }
+  ];
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentTextIndex((prev) => (prev + 1) % headerTexts.length);
+    }, 4000);
+    return () => clearInterval(interval);
+  }, []);
 
   const toggleMobileMenu = () => {
     setIsMobileMenuOpen(!isMobileMenuOpen);
@@ -27,218 +56,273 @@ export const Header: React.FC<HeaderProps> = ({
     setIsMobileMenuOpen(false);
   };
 
+  const currentText = headerTexts[currentTextIndex];
+
   return (
-    <header className="bg-white shadow-lg border-b-4 border-blue-700">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between items-center py-4">
-          {/* Logo and Title Section - Adjusted for mobile */}
-          <div className="flex items-center space-x-2 sm:space-x-4">
-            <div className="flex items-center space-x-2 sm:space-x-3">
-              <div className="rounded-full overflow-hidden w-12 h-12 sm:w-16 sm:h-16 flex items-center justify-center bg-white">
-                <img src="/mamo-logo.png" alt="College logo" className="w-full h-full object-contain" />
+    <header className="bg-gradient-to-r from-blue-50 via-white to-blue-50 shadow-lg border-b-4 border-blue-700">
+      <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-8">
+        <div className="flex justify-between items-center py-3 sm:py-4">
+          {/* Animated Logo and Title Section */}
+          <div className="flex items-center space-x-2 sm:space-x-3 lg:space-x-4 flex-1 min-w-0">
+            {/* Logos Container with Animation */}
+            <div className="flex items-center space-x-1.5 sm:space-x-2 flex-shrink-0">
+              {/* College Logo */}
+              <div 
+                className={`rounded-full overflow-hidden transition-all duration-700 flex items-center justify-center bg-white shadow-md ${
+                  currentText.showCollegeLogo 
+                    ? 'w-10 h-10 sm:w-12 sm:h-12 lg:w-16 lg:h-16 opacity-100 scale-100' 
+                    : 'w-0 h-0 opacity-0 scale-0'
+                }`}
+              >
+                <img src="/mamo-logo.png" alt="College logo" className="w-full h-full object-contain p-1" />
               </div>
-              <div className="rounded-full overflow-hidden w-8 h-8 sm:w-12 sm:h-12 flex items-center justify-center">
+              
+              {/* NSS Logo */}
+              <div 
+                className={`rounded-full overflow-hidden transition-all duration-700 flex items-center justify-center shadow-md ${
+                  currentText.showNSSLogo 
+                    ? 'w-8 h-8 sm:w-10 sm:h-10 lg:w-14 lg:h-14 opacity-100 scale-100' 
+                    : 'w-0 h-0 opacity-0 scale-0'
+                }`}
+              >
                 <img src="/download.png" alt="NSS logo" className="w-full h-full object-cover" />
               </div>
             </div>
-            <div>
-              <h1 className="text-lg sm:text-xl md:text-2xl font-bold text-gray-900">NSS MAMOC</h1>
-              <p className="text-xs sm:text-sm text-gray-600">National Service Scheme</p>
+
+            {/* Animated Text Container */}
+            <div className="min-w-0 flex-1 overflow-hidden">
+              <div className="relative h-12 sm:h-14 lg:h-16">
+                {headerTexts.map((text, index) => (
+                  <div
+                    key={index}
+                    className={`absolute inset-0 transition-all duration-700 ${
+                      index === currentTextIndex
+                        ? 'opacity-100 translate-y-0'
+                        : 'opacity-0 translate-y-4'
+                    }`}
+                  >
+                    <h1 className="text-xs sm:text-sm md:text-lg lg:text-xl xl:text-2xl font-bold text-blue-900 leading-tight truncate">
+                      {text.primary}
+                    </h1>
+                    <h1 className="text-xs sm:text-sm md:text-lg lg:text-xl xl:text-2xl font-bold text-red-900 leading-tight truncate">
+                      {text.secondary}
+                    </h1>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
 
-          {/* Desktop Navigation */}
-          <nav className="hidden md:flex space-x-6">
+          {/* Desktop Navigation - Enhanced */}
+          <nav className="hidden md:flex space-x-3 lg:space-x-4 xl:space-x-6 items-center">
             <button
               onClick={() => onViewChange('home')}
-              className={`px-4 py-2 rounded-lg font-medium transition-all duration-200 ${
+              className={`px-3 lg:px-4 py-2 rounded-xl font-medium transition-all duration-300 text-sm lg:text-base transform hover:scale-105 ${
                 currentView === 'home'
-                  ? 'bg-blue-700 text-white shadow-md'
-                  : 'text-gray-600 hover:text-blue-700 hover:bg-blue-50'
+                  ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-lg shadow-blue-200'
+                  : 'text-gray-700 hover:text-blue-700 hover:bg-blue-100 bg-white/60'
               }`}
             >
               Home
             </button>
             
-            {/* Programs (public) */}
             <button
               onClick={() => onViewChange('programs')}
-              className={`flex items-center space-x-2 px-4 py-2 rounded-lg font-medium transition-all duration-200 ${
+              className={`flex items-center space-x-2 px-3 lg:px-4 py-2 rounded-xl font-medium transition-all duration-300 text-sm lg:text-base transform hover:scale-105 ${
                 currentView === 'programs'
-                  ? 'bg-blue-700 text-white shadow-md'
-                  : 'text-gray-600 hover:text-blue-700 hover:bg-blue-50'
+                  ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-lg shadow-blue-200'
+                  : 'text-gray-700 hover:text-blue-700 hover:bg-blue-100 bg-white/60'
               }`}
             >
-              <Calendar size={18} />
+              <Calendar size={16} className="lg:w-[18px] lg:h-[18px]" />
               <span>Programs</span>
             </button>
 
-            {/* STORIES (only when logged in) */}
             {isLoggedIn && (
               <button
                 onClick={() => onViewChange('stories')}
-                className={`flex items-center space-x-2 px-4 py-2 rounded-lg font-medium transition-all duration-200 ${
+                className={`flex items-center space-x-2 px-3 lg:px-4 py-2 rounded-xl font-medium transition-all duration-300 text-sm lg:text-base transform hover:scale-105 ${
                   currentView === 'stories'
-                    ? 'bg-blue-700 text-white shadow-md'
-                    : 'text-gray-600 hover:text-blue-700 hover:bg-blue-50'
+                    ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-lg shadow-blue-200'
+                    : 'text-gray-700 hover:text-blue-700 hover:bg-blue-100 bg-white/60'
                 }`}
               >
                 <span>Stories</span>
               </button>
             )}
             
-            {/* Show Coordinator Portal button for officer login */}
             {isLoggedIn && userInfo?.type === 'officer' && (
               <button
                 onClick={() => onViewChange('coordinator')}
-                className={`px-4 py-2 rounded-lg font-medium transition-all duration-200 ${
+                className={`px-3 lg:px-4 py-2 rounded-xl font-medium transition-all duration-300 text-sm lg:text-base transform hover:scale-105 ${
                   currentView === 'coordinator'
-                    ? 'bg-blue-700 text-white shadow-md'
-                    : 'text-gray-600 hover:text-blue-700 hover:bg-blue-50'
+                    ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-lg shadow-blue-200'
+                    : 'text-gray-700 hover:text-blue-700 hover:bg-blue-100 bg-white/60'
                 }`}
               >
-                Coordinator Portal
+                Coordinator
               </button>
             )}
             
             {!isLoggedIn ? (
               <button
                 onClick={() => onViewChange('login')}
-                className={`flex items-center space-x-2 px-4 py-2 rounded-lg font-medium transition-all duration-200 ${
+                className={`flex items-center space-x-2 px-3 lg:px-4 py-2 rounded-xl font-medium transition-all duration-300 text-sm lg:text-base transform hover:scale-105 ${
                   currentView === 'login'
-                    ? 'bg-blue-700 text-white shadow-md'
-                    : 'text-gray-600 hover:text-blue-700 hover:bg-blue-50'
+                    ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-lg shadow-blue-200'
+                    : 'text-gray-700 hover:text-blue-700 hover:bg-blue-100 bg-white/60'
                 }`}
               >
-                <LogIn size={18} />
+                <LogIn size={16} className="lg:w-[18px] lg:h-[18px]" />
                 <span>Login</span>
               </button>
             ) : (
-              <div className="flex items-center space-x-4">
+              <div className="flex items-center space-x-2 lg:space-x-3">
                 <button
                   onClick={() => {
                     if (userInfo?.type === 'student') onViewChange('student');
                     else if (userInfo?.type === 'coordinator') onViewChange('coordinator');
                     else if (userInfo?.type === 'officer') onViewChange('officer');
                   }}
-                  className={`px-4 py-2 rounded-lg font-medium transition-all duration-200 ${
+                  className={`px-3 lg:px-4 py-2 rounded-xl font-medium transition-all duration-300 text-sm lg:text-base transform hover:scale-105 ${
                     (currentView === 'student' && userInfo?.type === 'student') ||
                     (currentView === 'coordinator' && userInfo?.type === 'coordinator') ||
                     (currentView === 'officer' && userInfo?.type === 'officer')
-                      ? 'bg-blue-700 text-white shadow-md'
-                      : 'text-gray-600 hover:text-blue-700 hover:bg-blue-50'
+                      ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-lg shadow-blue-200'
+                      : 'text-gray-700 hover:text-blue-700 hover:bg-blue-100 bg-white/60'
                   }`}
                 >
-                  <div className="text-sm">
-                    <span className="text-current">Welcome, </span>
-                    <span className="font-medium text-current">{userInfo?.name}</span>
-                    <div className="text-xs text-current opacity-75 capitalize">{userInfo?.type} Portal</div>
+                  <div className="text-xs lg:text-sm text-center">
+                    <div className="text-current">
+                      <span className="hidden lg:inline">Welcome, </span>
+                      <span className="font-medium">{userInfo?.name}</span>
+                    </div>
+                    <div className="text-[10px] lg:text-xs text-current opacity-80 capitalize">
+                      {userInfo?.type}
+                    </div>
                   </div>
                 </button>
                 <button
                   onClick={onLogout}
-                  className="flex items-center space-x-2 px-4 py-2 rounded-lg font-medium text-gray-600 hover:text-red-700 hover:bg-red-50 transition-all duration-200"
+                  className="flex items-center space-x-2 px-3 lg:px-4 py-2 rounded-xl font-medium text-sm lg:text-base text-red-600 hover:text-white hover:bg-gradient-to-r hover:from-red-500 hover:to-red-600 bg-red-50 transition-all duration-300 transform hover:scale-105 shadow-sm"
                 >
-                  <LogOut size={18} />
-                  <span>Logout</span>
+                  <LogOut size={16} className="lg:w-[18px] lg:h-[18px]" />
+                  <span className="hidden lg:inline">Logout</span>
                 </button>
               </div>
             )}
           </nav>
 
-          {/* Mobile Menu Button */}
-          <div className="md:hidden">
+          {/* Mobile Menu Button - Redesigned */}
+          <div className="md:hidden flex-shrink-0 ml-2">
             <button
               onClick={toggleMobileMenu}
-              className="p-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors"
+              className="relative p-2.5 text-white bg-gradient-to-br from-blue-600 to-blue-800 hover:from-blue-700 hover:to-blue-900 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 active:scale-95"
+              aria-label="Toggle menu"
             >
-              {isMobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
+              <div className="relative w-6 h-6">
+                <span
+                  className={`absolute left-0 top-1 w-6 h-0.5 bg-white rounded-full transition-all duration-300 ${
+                    isMobileMenuOpen ? 'rotate-45 top-2.5' : ''
+                  }`}
+                />
+                <span
+                  className={`absolute left-0 top-2.5 w-6 h-0.5 bg-white rounded-full transition-all duration-300 ${
+                    isMobileMenuOpen ? 'opacity-0' : ''
+                  }`}
+                />
+                <span
+                  className={`absolute left-0 top-4 w-6 h-0.5 bg-white rounded-full transition-all duration-300 ${
+                    isMobileMenuOpen ? '-rotate-45 top-2.5' : ''
+                  }`}
+                />
+              </div>
             </button>
           </div>
         </div>
 
-        {/* Mobile Navigation Menu */}
+        {/* Mobile Navigation Menu - Enhanced Design */}
         {isMobileMenuOpen && (
-          <div className="md:hidden border-t border-gray-200 py-4">
-            <nav className="space-y-3">
+          <div className="md:hidden border-t border-blue-200 py-3 bg-gradient-to-b from-blue-50/50 to-transparent">
+            <nav className="space-y-2">
               {/* Home Button */}
               <button
                 onClick={() => handleMobileNavigation('home')}
-                className={`w-full text-left px-4 py-3 rounded-lg font-medium transition-all duration-200 ${
+                className={`w-full text-left px-4 py-3 rounded-xl font-medium transition-all duration-300 transform hover:scale-[1.02] ${
                   currentView === 'home'
-                    ? 'bg-blue-700 text-white shadow-md'
-                    : 'text-gray-600 hover:text-blue-700 hover:bg-blue-50'
+                    ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-lg shadow-blue-200'
+                    : 'text-gray-700 hover:text-blue-700 hover:bg-blue-100 bg-white/80'
                 }`}
               >
-                Home
+                <span className="text-sm sm:text-base">🏠 Home</span>
               </button>
 
-              {/* Programs Button - shown for all users */}
+              {/* Programs Button */}
               <button
                 onClick={() => handleMobileNavigation('programs')}
-                className={`w-full text-left px-4 py-3 rounded-lg font-medium transition-all duration-200 flex items-center space-x-3 ${
+                className={`w-full text-left px-4 py-3 rounded-xl font-medium transition-all duration-300 transform hover:scale-[1.02] flex items-center space-x-3 ${
                   currentView === 'programs'
-                    ? 'bg-blue-700 text-white shadow-md'
-                    : 'text-gray-600 hover:text-blue-700 hover:bg-blue-50'
+                    ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-lg shadow-blue-200'
+                    : 'text-gray-700 hover:text-blue-700 hover:bg-blue-100 bg-white/80'
                 }`}
               >
-                <Calendar size={20} />
-                <span>Programs</span>
+                <Calendar size={18} />
+                <span className="text-sm sm:text-base">Programs</span>
               </button>
 
-              {/* Stories Button - only when logged in */}
+              {/* Stories Button */}
               {isLoggedIn && (
                 <button
                   onClick={() => handleMobileNavigation('stories')}
-                  className={`w-full text-left px-4 py-3 rounded-lg font-medium transition-all duration-200 ${
+                  className={`w-full text-left px-4 py-3 rounded-xl font-medium transition-all duration-300 transform hover:scale-[1.02] ${
                     currentView === 'stories'
-                      ? 'bg-blue-700 text-white shadow-md'
-                      : 'text-gray-600 hover:text-blue-700 hover:bg-blue-50'
+                      ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-lg shadow-blue-200'
+                      : 'text-gray-700 hover:text-blue-700 hover:bg-blue-100 bg-white/80'
                   }`}
                 >
-                  Stories
+                  <span className="text-sm sm:text-base">📖 Stories</span>
                 </button>
               )}
 
-              {/* Login/Portal Buttons based on authentication status */}
+              {/* Login/Portal Buttons */}
               {!isLoggedIn ? (
                 <button
                   onClick={() => handleMobileNavigation('login')}
-                  className={`w-full text-left px-4 py-3 rounded-lg font-medium transition-all duration-200 flex items-center space-x-3 ${
+                  className={`w-full text-left px-4 py-3 rounded-xl font-medium transition-all duration-300 transform hover:scale-[1.02] flex items-center space-x-3 ${
                     currentView === 'login'
-                      ? 'bg-blue-700 text-white shadow-md'
-                      : 'text-gray-600 hover:text-blue-700 hover:bg-blue-50'
+                      ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-lg shadow-blue-200'
+                      : 'text-gray-700 hover:text-blue-700 hover:bg-blue-100 bg-white/80'
                   }`}
                 >
-                  <LogIn size={20} />
-                  <span>Login</span>
+                  <LogIn size={18} />
+                  <span className="text-sm sm:text-base">Login</span>
                 </button>
               ) : (
                 <>
-                  {/* Portal Button based on user type */}
+                  {/* Portal Buttons */}
                   {userInfo?.type === 'student' && (
                     <button
                       onClick={() => handleMobileNavigation('student')}
-                      className={`w-full text-left px-4 py-3 rounded-lg font-medium transition-all duration-200 ${
+                      className={`w-full text-left px-4 py-3 rounded-xl font-medium transition-all duration-300 transform hover:scale-[1.02] ${
                         currentView === 'student'
-                          ? 'bg-blue-700 text-white shadow-md'
-                          : 'text-gray-600 hover:text-blue-700 hover:bg-blue-50'
+                          ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-lg shadow-blue-200'
+                          : 'text-gray-700 hover:text-blue-700 hover:bg-blue-100 bg-white/80'
                       }`}
                     >
-                      Student Portal
+                      <span className="text-sm sm:text-base">👤 Student Portal</span>
                     </button>
                   )}
 
                   {userInfo?.type === 'coordinator' && (
                     <button
                       onClick={() => handleMobileNavigation('coordinator')}
-                      className={`w-full text-left px-4 py-3 rounded-lg font-medium transition-all duration-200 ${
+                      className={`w-full text-left px-4 py-3 rounded-xl font-medium transition-all duration-300 transform hover:scale-[1.02] ${
                         currentView === 'coordinator'
-                          ? 'bg-blue-700 text-white shadow-md'
-                          : 'text-gray-600 hover:text-blue-700 hover:bg-blue-50'
+                          ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-lg shadow-blue-200'
+                          : 'text-gray-700 hover:text-blue-700 hover:bg-blue-100 bg-white/80'
                       }`}
                     >
-                      Coordinator Portal
+                      <span className="text-sm sm:text-base">👨‍🏫 Coordinator Portal</span>
                     </button>
                   )}
 
@@ -246,23 +330,23 @@ export const Header: React.FC<HeaderProps> = ({
                     <>
                       <button
                         onClick={() => handleMobileNavigation('officer')}
-                        className={`w-full text-left px-4 py-3 rounded-lg font-medium transition-all duration-200 ${
+                        className={`w-full text-left px-4 py-3 rounded-xl font-medium transition-all duration-300 transform hover:scale-[1.02] ${
                           currentView === 'officer'
-                            ? 'bg-blue-700 text-white shadow-md'
-                            : 'text-gray-600 hover:text-blue-700 hover:bg-blue-50'
+                            ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-lg shadow-blue-200'
+                            : 'text-gray-700 hover:text-blue-700 hover:bg-blue-100 bg-white/80'
                         }`}
                       >
-                        Officer Portal
+                        <span className="text-sm sm:text-base">👔 Officer Portal</span>
                       </button>
                       <button
                         onClick={() => handleMobileNavigation('coordinator')}
-                        className={`w-full text-left px-4 py-3 rounded-lg font-medium transition-all duration-200 ${
+                        className={`w-full text-left px-4 py-3 rounded-xl font-medium transition-all duration-300 transform hover:scale-[1.02] ${
                           currentView === 'coordinator'
-                            ? 'bg-blue-700 text-white shadow-md'
-                            : 'text-gray-600 hover:text-blue-700 hover:bg-blue-50'
+                            ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-lg shadow-blue-200'
+                            : 'text-gray-700 hover:text-blue-700 hover:bg-blue-100 bg-white/80'
                         }`}
                       >
-                        Coordinator Portal
+                        <span className="text-sm sm:text-base">👨‍🏫 Coordinator Portal</span>
                       </button>
                     </>
                   )}
@@ -273,10 +357,10 @@ export const Header: React.FC<HeaderProps> = ({
                       onLogout?.();
                       setIsMobileMenuOpen(false);
                     }}
-                    className="w-full text-left px-4 py-3 rounded-lg font-medium text-red-600 hover:text-red-800 hover:bg-red-50 transition-all duration-200 flex items-center space-x-3"
+                    className="w-full text-left px-4 py-3 rounded-xl font-medium text-red-600 hover:text-white hover:bg-gradient-to-r hover:from-red-500 hover:to-red-600 bg-red-50 transition-all duration-300 transform hover:scale-[1.02] flex items-center space-x-3 shadow-sm"
                   >
-                    <LogOut size={20} />
-                    <span>Logout</span>
+                    <LogOut size={18} />
+                    <span className="text-sm sm:text-base">Logout</span>
                   </button>
                 </>
               )}
@@ -287,3 +371,5 @@ export const Header: React.FC<HeaderProps> = ({
     </header>
   );
 };
+
+export default Header;

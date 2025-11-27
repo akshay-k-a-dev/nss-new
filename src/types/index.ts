@@ -5,6 +5,7 @@ export interface Program {
   date: string;
   time: string;
   venue: string;
+  coordinator: string;
   coordinatorIds: string[]; // Array of student IDs who are coordinators
   createdAt: string;
   updatedAt: string;
