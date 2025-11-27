@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Plus, Edit, Trash2, Calendar, Clock, MapPin, User, Save, X, Users, Search, Check, FileDown } from 'lucide-react';
 import { Program, RegisteredStudent } from '../types';
 import { downloadAttendanceSheet, AttendeeEntry } from '../utils/attendanceSheetGenerator';
@@ -24,7 +24,7 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
   const [editingProgram, setEditingProgram] = useState<Program | null>(null);
   const [showParticipantSelection, setShowParticipantSelection] = useState<string | null>(null);
   const [selectedStudentIds, setSelectedStudentIds] = useState<string[]>([]);
-  const [searchTerm, setSearchTerm] = useState('');
+  const [participantSearchTerm, setParticipantSearchTerm] = useState('');
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -36,6 +36,7 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
 
   const [showCoordinatorSelection, setShowCoordinatorSelection] = useState(false);
   const [selectedCoordinatorIds, setSelectedCoordinatorIds] = useState<string[]>([]);
+  const [coordinatorSearchTerm, setCoordinatorSearchTerm] = useState('');
 
   // Department-wise attendance sheet UI state
   const [showAttendanceSheet, setShowAttendanceSheet] = useState(false);
@@ -60,7 +61,7 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
   const handleParticipantSelection = (programId: string) => {
     setShowParticipantSelection(programId);
     setSelectedStudentIds(programs.find(p => p.id === programId)?.participantIds || []);
-    setSearchTerm('');
+    setParticipantSearchTerm('');
   };
 
   const handleStudentToggle = (studentId: string) => {
@@ -84,13 +85,14 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
       onAddParticipants(showParticipantSelection, selectedStudentIds);
       setShowParticipantSelection(null);
       setSelectedStudentIds([]);
-      setSearchTerm('');
+      setParticipantSearchTerm('');
     }
   };
 
   const handleConfirmCoordinators = () => {
     setFormData(prev => ({ ...prev, coordinatorIds: selectedCoordinatorIds }));
     setShowCoordinatorSelection(false);
+    setCoordinatorSearchTerm('');
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -126,31 +128,72 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
     setFormData({ title: '', description: '', date: '', time: '', venue: '', coordinatorIds: [] });
   };
 
-  const filteredStudents = registeredStudents.filter(student =>
-    student.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    student.department.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    student.id.includes(searchTerm)
-  ).sort((a, b) => parseInt(a.id) - parseInt(b.id));
+  const participantCandidates = useMemo(() => {
+    const normalizedTerm = participantSearchTerm.toLowerCase().trim();
+    return registeredStudents
+      .filter(student => {
+        if (!normalizedTerm) return true;
+        return (
+          student.name.toLowerCase().includes(normalizedTerm) ||
+          student.department.toLowerCase().includes(normalizedTerm) ||
+          student.id.toLowerCase().includes(normalizedTerm)
+        );
+      })
+      .sort((a, b) => a.id.localeCompare(b.id, undefined, { numeric: true, sensitivity: 'base' }));
+  }, [registeredStudents, participantSearchTerm]);
 
-  const allFilteredSelected =
-    filteredStudents.length > 0 &&
-    filteredStudents.every(student => selectedStudentIds.includes(student.id));
+  const coordinatorCandidates = useMemo(() => {
+    const normalizedTerm = coordinatorSearchTerm.toLowerCase().trim();
+    return registeredStudents
+      .filter(student => {
+        if (!normalizedTerm) return true;
+        return (
+          student.name.toLowerCase().includes(normalizedTerm) ||
+          student.department.toLowerCase().includes(normalizedTerm) ||
+          student.id.toLowerCase().includes(normalizedTerm)
+        );
+      })
+      .sort((a, b) => a.id.localeCompare(b.id, undefined, { numeric: true, sensitivity: 'base' }));
+  }, [registeredStudents, coordinatorSearchTerm]);
 
-  const handleToggleSelectAllFiltered = () => {
+  const allFilteredParticipantsSelected =
+    participantCandidates.length > 0 &&
+    participantCandidates.every(student => selectedStudentIds.includes(student.id));
+
+  const allFilteredCoordinatorsSelected =
+    coordinatorCandidates.length > 0 &&
+    coordinatorCandidates.every(student => selectedCoordinatorIds.includes(student.id));
+
+  const handleToggleSelectAllParticipants = () => {
     setSelectedStudentIds(previousSelectedIds => {
-      if (filteredStudents.length === 0) return previousSelectedIds;
+      if (participantCandidates.length === 0) return previousSelectedIds;
 
-      const filteredIdSet = new Set(filteredStudents.map(s => s.id));
+      const filteredIdSet = new Set(participantCandidates.map(s => s.id));
       const isAllSelected = Array.from(filteredIdSet).every(id => previousSelectedIds.includes(id));
 
       if (isAllSelected) {
-        // Deselect all filtered
         return previousSelectedIds.filter(id => !filteredIdSet.has(id));
       }
 
-      // Select all filtered (merge, avoid duplicates)
       const merged = new Set(previousSelectedIds);
-      filteredStudents.forEach(s => merged.add(s.id));
+      participantCandidates.forEach(s => merged.add(s.id));
+      return Array.from(merged);
+    });
+  };
+
+  const handleToggleSelectAllCoordinators = () => {
+    setSelectedCoordinatorIds(previousSelectedIds => {
+      if (coordinatorCandidates.length === 0) return previousSelectedIds;
+
+      const filteredIdSet = new Set(coordinatorCandidates.map(s => s.id));
+      const isAllSelected = Array.from(filteredIdSet).every(id => previousSelectedIds.includes(id));
+
+      if (isAllSelected) {
+        return previousSelectedIds.filter(id => !filteredIdSet.has(id));
+      }
+
+      const merged = new Set(previousSelectedIds);
+      coordinatorCandidates.forEach(s => merged.add(s.id));
       return Array.from(merged);
     });
   };
@@ -242,6 +285,7 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
                       onClick={() => {
                         setSelectedCoordinatorIds(formData.coordinatorIds);
                         setShowCoordinatorSelection(true);
+                        setCoordinatorSearchTerm('');
                       }}
                       className="px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
                     >
@@ -345,33 +389,33 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
                   <input
                     type="text"
                     placeholder="Search students by name, department, or ID..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
+                    value={coordinatorSearchTerm}
+                    onChange={(e) => setCoordinatorSearchTerm(e.target.value)}
                     className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   />
                 </div>
                 <div className="mt-3 flex justify-end">
                   <button
-                    onClick={handleToggleSelectAllFiltered}
+                    onClick={handleToggleSelectAllCoordinators}
                     className="px-4 py-2 text-sm rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-100"
                   >
-                    {allFilteredSelected ? 'Deselect All' : 'Select All'}
+                    {allFilteredCoordinatorsSelected ? 'Deselect All' : 'Select All'}
                   </button>
                 </div>
               </div>
               
               <div className="p-6 overflow-y-auto max-h-[50vh]">
-                {filteredStudents.length === 0 ? (
+                {coordinatorCandidates.length === 0 ? (
                   <div className="text-center py-8">
                     <Users size={48} className="mx-auto text-gray-400 mb-4" />
                     <p className="text-xl text-gray-500">No students found</p>
                     <p className="text-gray-400">
-                      {searchTerm ? 'Try adjusting your search terms' : 'No students have been registered by the Program Officer yet'}
+                      {coordinatorSearchTerm ? 'Try adjusting your search terms' : 'No students have been registered by the Program Officer yet'}
                     </p>
                   </div>
                 ) : (
                   <div className="space-y-3">
-                    {filteredStudents.map((student) => (
+                    {coordinatorCandidates.map((student) => (
                       <div key={student.id} className="bg-gray-50 p-4 rounded-lg flex items-center justify-between">
                         <div className="flex items-center space-x-4">
                           <input
@@ -401,7 +445,7 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
               
               <div className="p-6 border-t border-gray-200 flex justify-between items-center">
                 <div className="text-sm text-gray-600">
-                  {selectedCoordinatorIds.length} of {filteredStudents.length} students selected
+                  {selectedCoordinatorIds.length} selected | {coordinatorCandidates.length} shown
                 </div>
                 <div className="flex space-x-3">
                   <button
@@ -446,33 +490,33 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
                   <input
                     type="text"
                     placeholder="Search students by name, department, or ID..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
+                    value={participantSearchTerm}
+                    onChange={(e) => setParticipantSearchTerm(e.target.value)}
                     className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   />
                 </div>
                 <div className="mt-3 flex justify-end">
                   <button
-                    onClick={handleToggleSelectAllFiltered}
+                    onClick={handleToggleSelectAllParticipants}
                     className="px-4 py-2 text-sm rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-100"
                   >
-                    {allFilteredSelected ? 'Deselect All' : 'Select All'}
+                    {allFilteredParticipantsSelected ? 'Deselect All' : 'Select All'}
                   </button>
                 </div>
               </div>
               
               <div className="p-6 overflow-y-auto max-h-[50vh]">
-                {filteredStudents.length === 0 ? (
+                {participantCandidates.length === 0 ? (
                   <div className="text-center py-8">
                     <Users size={48} className="mx-auto text-gray-400 mb-4" />
                     <p className="text-xl text-gray-500">No students found</p>
                     <p className="text-gray-400">
-                      {searchTerm ? 'Try adjusting your search terms' : 'No students have been registered by the Program Officer yet'}
+                      {participantSearchTerm ? 'Try adjusting your search terms' : 'No students have been registered by the Program Officer yet'}
                     </p>
                   </div>
                 ) : (
                   <div className="space-y-3">
-                    {filteredStudents.map((student) => (
+                    {participantCandidates.map((student) => (
                       <div key={student.id} className="bg-gray-50 p-4 rounded-lg flex items-center justify-between">
                         <div className="flex items-center space-x-4">
                           <input
@@ -502,7 +546,7 @@ export const TeacherPortal: React.FC<TeacherPortalProps> = ({
               
               <div className="p-6 border-t border-gray-200 flex justify-between items-center">
                 <div className="text-sm text-gray-600">
-                  {selectedStudentIds.length} of {filteredStudents.length} students selected
+                  {selectedStudentIds.length} selected | {participantCandidates.length} shown
                 </div>
                 <div className="flex space-x-3">
                   <button

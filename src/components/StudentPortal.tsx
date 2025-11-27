@@ -77,8 +77,9 @@ const ProgramCard: React.FC<{
   const isPast = !isUpcoming;
 
   // normalize coordinator(s) to a display string
-  const coordinatorsDisplay =
-    Array.isArray((program as any).coordinatorIds) ? (program as any).coordinatorIds.join(', ') : (program as any).coordinatorIds || '';
+  const coordinatorsDisplay = program.coordinatorIds?.length
+    ? program.coordinatorIds.join(', ')
+    : program.coordinator || 'Not assigned';
 
   return (
     <motion.div
@@ -201,7 +202,9 @@ export default function StudentPortal({ programs, currentStudent }: StudentPorta
 
   const handleDownloadCertificate = (program: Program) => {
     // ensure coordinator is a string (join if array)
-    const coordinatorString = Array.isArray((program as any).coordinatorIds) ? (program as any).coordinatorIds.join(', ') : (program as any).coordinatorIds || '';
+    const coordinatorString = program.coordinatorIds?.length
+      ? program.coordinatorIds.join(', ')
+      : program.coordinator || '';
 
     const certificate = {
       programId: program.id,
