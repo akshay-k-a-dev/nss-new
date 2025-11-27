@@ -418,7 +418,7 @@ export const HomePage: React.FC<HomePageProps> = ({ programs }) => {
                 </p>
                 <p className="flex items-center gap-3 hover:text-white transition-colors">
                   <span className="text-2xl">📱</span>
-                  +91 98765 43210
+                  +0495 229 7319
                 </p>
                 <p className="flex items-center gap-3 hover:text-white transition-colors">
                   <span className="text-2xl">📍</span>
