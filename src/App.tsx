@@ -2,7 +2,8 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Header } from './components/Header';
 import { HomePage } from './components/HomePage';
 import { TeacherPortal } from './components/TeacherPortal';
-import { StudentPortal } from './components/StudentPortal';
+//import { StudentPortal } from './components/StudentPortal';
+import StudentPortal from "./components/StudentPortal";
 import { ProgramOfficerPortal } from './components/ProgramOfficerPortal';
 import { LoginPage } from './components/LoginPage';
 import { ProgramsPage } from './components/ProgramsPage';
@@ -436,22 +437,22 @@ function App() {
                 setCurrentBatchId={setCurrentBatchId}
                 canManage={currentUser?.type === 'coordinator' || currentUser?.type === 'officer'}
                 isOfficer={currentUser?.type === 'officer'}
-                onCreateBatch={(name) => {
+                onCreateBatch={(name: string) => {
                   const newBatch: StoryBatch = { id: 'batch-' + Date.now(), name, albums: [], featuredMediaIds: [], createdAt: new Date().toISOString() };
                   setStoryBatches(prev => [newBatch, ...prev]);
                   setCurrentBatchId(newBatch.id);
                 }}
-                onCreateAlbum={(batchId, name) => {
+                onCreateAlbum={(batchId: string, name: string) => {
                   setStoryBatches(prev => prev.map(b => b.id === batchId ? { ...b, albums: [{ id: 'album-' + Date.now(), name, media: [], createdAt: new Date().toISOString() }, ...b.albums] } : b));
                 }}
-                onDeleteMedia={(batchId, albumId, mediaId) => {
+                onDeleteMedia={(batchId: string, albumId: string, mediaId: string) => {
                   setStoryBatches(prev => prev.map(b => b.id === batchId ? { ...b, albums: b.albums.map(a => a.id === albumId ? { ...a, media: a.media.filter(m => m.id !== mediaId) } : a), featuredMediaIds: b.featuredMediaIds.filter(id => id !== mediaId) } : b));
                 }}
-                onAddMedia={(batchId, albumId, files) => {
-                  const newItems: StoryMediaItem[] = files.map(f => ({ id: 'media-' + Date.now() + '-' + Math.random().toString(36).slice(2,8), type: f.type.startsWith('video') ? 'video' : 'image', url: URL.createObjectURL(f), title: f.name, createdAt: new Date().toISOString() }));
+                onAddMedia={(batchId: string, albumId: string, files: File[]) => {
+                  const newItems: StoryMediaItem[] = files.map((f: File) => ({ id: 'media-' + Date.now() + '-' + Math.random().toString(36).slice(2,8), type: f.type.startsWith('video') ? 'video' : 'image', url: URL.createObjectURL(f), title: f.name, createdAt: new Date().toISOString() }));
                   setStoryBatches(prev => prev.map(b => b.id === batchId ? { ...b, albums: b.albums.map(a => a.id === albumId ? { ...a, media: [...newItems, ...a.media] } : a) } : b));
                 }}
-                onToggleFeatured={(batchId, mediaId) => {
+                onToggleFeatured={(batchId: string, mediaId: string) => {
                   setStoryBatches(prev => prev.map(b => b.id === batchId ? { ...b, featuredMediaIds: b.featuredMediaIds.includes(mediaId) ? b.featuredMediaIds.filter(id => id !== mediaId) : [...b.featuredMediaIds, mediaId] } : b));
                 }}
                 onMergeCurrentAlbumToSingle={() => {
@@ -510,7 +511,7 @@ function App() {
               programs={programs}
               onAddStudentActivity={(studentId, activity) => {
                 setStudentReports(prev => {
-                  const report = prev[studentId] || { activities: [] };
+                  const report = prev[studentId] || { activities: [], coordinatedPrograms: [] };
                   return {
                     ...prev,
                     [studentId]: {
@@ -518,6 +519,7 @@ function App() {
                         ...report.activities,
                         { ...activity, id: Date.now().toString(), createdAt: new Date().toISOString() },
                       ],
+                      coordinatedPrograms: report.coordinatedPrograms || [],
                     },
                   };
                 });
@@ -530,6 +532,7 @@ function App() {
                     ...prev,
                     [studentId]: {
                       activities: report.activities.map(a => a.id === activityId ? { ...a, ...updates } : a),
+                      coordinatedPrograms: report.coordinatedPrograms || [],
                     },
                   };
                 });
