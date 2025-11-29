@@ -2,16 +2,17 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "version": 2,
   "framework": "vite",
-  "buildCommand": "npm run build",
+  "installCommand": "npm install && cd vercel/api && npm install",
+  "buildCommand": "npm run build && cd vercel/api && npm run build",
   "outputDirectory": "dist",
   "rewrites": [
     {
       "source": "/api/:path*",
-      "destination": "/vercel/api/index.js"
+      "destination": "/api"
     }
   ],
   "functions": {
-    "vercel/api/index.js": {
+    "api/index.js": {
       "runtime": "@vercel/node@3.0.0",
       "includeFiles": "vercel/api/**"
     }
