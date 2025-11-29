@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "node --watch server.js",
+    "build": "prisma generate",
     "start": "node server.js",
     "prisma:generate": "prisma generate",
     "prisma:push": "prisma db push",
