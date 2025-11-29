@@ -1,0 +1,29 @@
+{
+  "name": "nss-api",
+  "version": "1.0.0",
+  "description": "NSS Backend API - Vercel Serverless Functions with Fastify + Prisma",
+  "type": "module",
+  "scripts": {
+    "dev": "node --watch server.js",
+    "start": "node server.js",
+    "prisma:generate": "prisma generate",
+    "prisma:push": "prisma db push",
+    "prisma:seed": "node prisma/seed.js",
+    "prisma:studio": "prisma studio",
+    "db:setup": "npm run prisma:generate && npm run prisma:push && npm run prisma:seed"
+  },
+  "prisma": {
+    "seed": "node prisma/seed.js"
+  },
+  "dependencies": {
+    "@fastify/cors": "^9.0.1",
+    "@prisma/client": "^5.22.0",
+    "fastify": "^4.26.0"
+  },
+  "devDependencies": {
+    "prisma": "^5.22.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

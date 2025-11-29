@@ -65,12 +65,12 @@ export const Header: React.FC<HeaderProps> = ({
           {/* Animated Logo and Title Section */}
           <div className="flex items-center space-x-2 sm:space-x-3 lg:space-x-4 flex-1 min-w-0">
             {/* Logos Container with Animation */}
-            <div className="flex items-center space-x-1.5 sm:space-x-2 flex-shrink-0">
+            <div className="flex items-center space-x-1 sm:space-x-2 flex-shrink-0">
               {/* College Logo */}
               <div 
                 className={`rounded-full overflow-hidden transition-all duration-700 flex items-center justify-center bg-white shadow-md ${
                   currentText.showCollegeLogo 
-                    ? 'w-10 h-10 sm:w-12 sm:h-12 lg:w-16 lg:h-16 opacity-100 scale-100' 
+                    ? 'w-9 h-9 sm:w-12 sm:h-12 lg:w-16 lg:h-16 opacity-100 scale-100' 
                     : 'w-0 h-0 opacity-0 scale-0'
                 }`}
               >
@@ -81,7 +81,7 @@ export const Header: React.FC<HeaderProps> = ({
               <div 
                 className={`rounded-full overflow-hidden transition-all duration-700 flex items-center justify-center shadow-md ${
                   currentText.showNSSLogo 
-                    ? 'w-8 h-8 sm:w-10 sm:h-10 lg:w-14 lg:h-14 opacity-100 scale-100' 
+                    ? 'w-7 h-7 sm:w-10 sm:h-10 lg:w-14 lg:h-14 opacity-100 scale-100' 
                     : 'w-0 h-0 opacity-0 scale-0'
                 }`}
               >
@@ -91,20 +91,20 @@ export const Header: React.FC<HeaderProps> = ({
 
             {/* Animated Text Container */}
             <div className="min-w-0 flex-1 overflow-hidden">
-              <div className="relative h-12 sm:h-14 lg:h-16">
+              <div className="relative h-10 sm:h-12 lg:h-16 flex items-center">
                 {headerTexts.map((text, index) => (
                   <div
                     key={index}
-                    className={`absolute inset-0 transition-all duration-700 ${
+                    className={`absolute inset-0 flex flex-col justify-center transition-all duration-700 ${
                       index === currentTextIndex
                         ? 'opacity-100 translate-y-0'
                         : 'opacity-0 translate-y-4'
                     }`}
                   >
-                    <h1 className="text-xs sm:text-sm md:text-lg lg:text-xl xl:text-2xl font-bold text-blue-900 leading-tight truncate">
+                    <h1 className="text-[10px] sm:text-xs md:text-lg lg:text-xl xl:text-2xl font-bold text-blue-900 leading-tight truncate">
                       {text.primary}
                     </h1>
-                    <h1 className="text-xs sm:text-sm md:text-lg lg:text-xl xl:text-2xl font-bold text-red-900 leading-tight truncate">
+                    <h1 className="text-[10px] sm:text-xs md:text-lg lg:text-xl xl:text-2xl font-bold text-red-900 leading-tight truncate">
                       {text.secondary}
                     </h1>
                   </div>

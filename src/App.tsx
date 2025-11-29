@@ -8,54 +8,15 @@ import { ProgramOfficerPortal } from './components/ProgramOfficerPortal';
 import { LoginPage } from './components/LoginPage';
 import { ProgramsPage } from './components/ProgramsPage';
 import { StoryBatch, StoryMediaItem } from './types';
-import { mockPrograms } from './data/mockData';
 import { Program, RegisteredStudent, Coordinator, StudentReport, Department } from './types';
+import { nssApi } from './services/nssApi';
+import { saveAuthSession, getAuthSession, clearAuthSession } from './utils/authStorage';
 
 function App() {
   const [currentView, setCurrentView] = useState<'home' | 'programs' | 'stories' | 'login' | 'student' | 'coordinator' | 'officer'>('home');
-  const [programs, setPrograms] = useState<Program[]>(mockPrograms);
-  const [registeredStudents, setRegisteredStudents] = useState<RegisteredStudent[]>([
-    {
-      id: '101',
-      name: 'John Doe',
-      department: 'Computer Science',
-      password: 'student123',
-      createdAt: new Date().toISOString(),
-    },
-    {
-      id: '102',
-      name: 'Jane Smith',
-      department: 'Electronics',
-      password: 'student456',
-      createdAt: new Date().toISOString(),
-    },
-    {
-      id: '103',
-      name: 'Mike Johnson',
-      department: 'Mechanical',
-      password: 'student789',
-      createdAt: new Date().toISOString(),
-    },
-  ]);
-  
-  const [coordinators, setCoordinators] = useState<Coordinator[]>([
-    {
-      id: 'COORD1001',
-      name: 'Dr. Sarah Johnson',
-      department: 'NSS Coordinator',
-      password: 'coord123',
-      isActive: true,
-      createdAt: new Date().toISOString(),
-    },
-    {
-      id: 'COORD1002',
-      name: 'Prof. Michael Chen',
-      department: 'Environmental Science',
-      password: 'coord456',
-      isActive: true,
-      createdAt: new Date().toISOString(),
-    },
-  ]);
+  const [programs, setPrograms] = useState<Program[]>([]);
+  const [registeredStudents, setRegisteredStudents] = useState<RegisteredStudent[]>([]);
+  const [coordinators, setCoordinators] = useState<Coordinator[]>([]);
   
   // Authentication state
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -66,6 +27,9 @@ function App() {
 
   // Reports keyed by studentId
   const [studentReports, setStudentReports] = useState<Record<string, StudentReport>>({});
+
+  const [isBootstrapping, setIsBootstrapping] = useState(true);
+  const [bootstrapError, setBootstrapError] = useState<string | null>(null);
 
   // STORIES state: batches -> albums -> media
   const [storyBatches, setStoryBatches] = useState<StoryBatch[]>([{
@@ -99,12 +63,68 @@ function App() {
     { id: 'dept-11', name: 'Economics', isActive: true, createdAt: new Date().toISOString() },
   ]);
 
-  // Program Officer credentials (hardcoded for demo)
-  const [officerCredentials, setOfficerCredentials] = useState({ id: 'OFFICER001', password: 'NSS@OFFICER2025' });
+  // Program Officer credentials - loaded from backend
+  const [officerCredentials, setOfficerCredentials] = useState<{ id: string; password: string } | null>(null);
 
   // Auto-logout functionality
   const logoutTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const INACTIVITY_TIMEOUT = 30 * 60 * 1000; // 30 minutes in milliseconds
+
+  const normalizeProgram = (program: Program): Program => ({
+    ...program,
+    coordinatorIds: program.coordinatorIds || [],
+    participantIds: program.participantIds || [],
+  });
+
+  const getCoordinatedProgramPayload = (program: Program) => ({
+    id: program.id,
+    title: program.title,
+    description: program.description,
+    date: program.date,
+    time: program.time,
+    venue: program.venue,
+    createdAt: program.createdAt,
+  });
+
+  const addProgramToCoordinatorReports = (program: Program, coordinatorIds: string[]) => {
+    if (!coordinatorIds.length) return;
+
+    setStudentReports(prev => {
+      const updated = { ...prev };
+      const coordinatedProgram = getCoordinatedProgramPayload(program);
+
+      coordinatorIds.forEach(studentId => {
+        const existingReport = updated[studentId] || { activities: [], coordinatedPrograms: [] };
+        updated[studentId] = {
+          ...existingReport,
+          coordinatedPrograms: [
+            coordinatedProgram,
+            ...(existingReport.coordinatedPrograms || []).filter(p => p.id !== program.id),
+          ],
+        };
+      });
+
+      return updated;
+    });
+  };
+
+  const removeProgramFromCoordinatorReports = (programId: string, coordinatorIds: string[]) => {
+    if (!coordinatorIds.length) return;
+
+    setStudentReports(prev => {
+      const updated = { ...prev };
+      coordinatorIds.forEach(studentId => {
+        if (!updated[studentId]) return;
+        updated[studentId] = {
+          ...updated[studentId],
+          coordinatedPrograms: (updated[studentId].coordinatedPrograms || []).filter(
+            program => program.id !== programId
+          ),
+        };
+      });
+      return updated;
+    });
+  };
 
   // Auto-logout function
   const handleAutoLogout = useCallback(() => {
@@ -168,13 +188,107 @@ function App() {
     };
   }, []);
 
-  const handleLogin = (credentials: { id: string; password: string }) => {
-    // Officer first (single set of credentials)
-    if (credentials.id === officerCredentials.id && credentials.password === officerCredentials.password) {
-      setCurrentUser({ type: 'officer', data: { id: credentials.id, name: 'Program Officer' } });
+  useEffect(() => {
+    let isActive = true;
+
+    const bootstrap = async () => {
+      try {
+        // Restore auth session from IndexedDB
+        const savedSession = await getAuthSession();
+        if (savedSession && isActive) {
+          setCurrentUser({
+            type: savedSession.userType,
+            data: savedSession.userData as RegisteredStudent | Coordinator | { id: string; name: string },
+          });
+          setIsLoggedIn(true);
+          setCurrentView(savedSession.userType);
+        }
+
+        const [programData, studentData, coordinatorData, departmentData] = await Promise.all([
+          nssApi.getPrograms().catch(error => {
+            console.warn('Failed to load programs from API', error);
+            return null;
+          }),
+          nssApi.getStudents().catch(error => {
+            console.warn('Failed to load students from API', error);
+            return null;
+          }),
+          nssApi.getCoordinators().catch(error => {
+            console.warn('Failed to load coordinators from API', error);
+            return null;
+          }),
+          nssApi.getDepartments().catch(error => {
+            console.warn('Failed to load departments from API', error);
+            return null;
+          }),
+        ]);
+
+        if (!isActive) {
+          return;
+        }
+
+        if (programData) {
+          setPrograms(programData.map(normalizeProgram));
+        }
+
+        if (studentData) {
+          setRegisteredStudents(studentData);
+        }
+
+        if (coordinatorData) {
+          setCoordinators(coordinatorData);
+        }
+
+        if (departmentData) {
+          setDepartments(departmentData);
+        }
+
+        setBootstrapError(null);
+      } catch (error) {
+        if (!isActive) return;
+        const message =
+          error instanceof Error ? error.message : 'Failed to contact NSS backend.';
+        setBootstrapError(message);
+      } finally {
+        if (isActive) {
+          setIsBootstrapping(false);
+        }
+      }
+    };
+
+    bootstrap();
+
+    return () => {
+      isActive = false;
+    };
+  }, []);
+
+  const handleLogin = async (credentials: { id: string; password: string }): Promise<void> => {
+    // Officer first (single set of credentials) - use API if credentials not loaded
+    if (officerCredentials && credentials.id === officerCredentials.id && credentials.password === officerCredentials.password) {
+      const userData = { id: credentials.id, name: 'Program Officer' };
+      setCurrentUser({ type: 'officer', data: userData });
       setIsLoggedIn(true);
       setCurrentView('officer');
+      await saveAuthSession('officer', userData);
       return;
+    }
+    
+    // Try officer login via API if credentials not available locally
+    if (!officerCredentials) {
+      try {
+        const response = await nssApi.officerLogin(credentials);
+        if (response.user || response.token) {
+          const userData = { id: credentials.id, name: 'Program Officer' };
+          setCurrentUser({ type: 'officer', data: userData });
+          setIsLoggedIn(true);
+          setCurrentView('officer');
+          await saveAuthSession('officer', userData);
+          return;
+        }
+      } catch {
+        // Continue to coordinator/student login
+      }
     }
 
     // Coordinator next (must be active)
@@ -183,6 +297,7 @@ function App() {
       setCurrentUser({ type: 'coordinator', data: coordinator });
       setIsLoggedIn(true);
       setCurrentView('coordinator');
+      await saveAuthSession('coordinator', coordinator);
       return;
     }
 
@@ -192,16 +307,20 @@ function App() {
       setCurrentUser({ type: 'student', data: student });
       setIsLoggedIn(true);
       setCurrentView('student');
+      await saveAuthSession('student', student);
       return;
     }
 
-    alert('Invalid credentials');
+    throw new Error('Invalid credentials');
   };
 
   const handleLogout = () => {
     setIsLoggedIn(false);
     setCurrentUser(null);
     setCurrentView('home');
+    
+    // Clear auth session from IndexedDB
+    void clearAuthSession();
     
     // Clear the logout timer
     if (logoutTimerRef.current) {
@@ -211,52 +330,46 @@ function App() {
   };
 
   const handleAddProgram = (programData: Omit<Program, 'id' | 'createdAt' | 'updatedAt'>) => {
-    const newProgram: Program = {
+    const fallbackProgram: Program = {
       ...programData,
       id: Date.now().toString(),
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       participantIds: [],
     };
-    setPrograms(prev => [newProgram, ...prev]);
-    
-    // Update student reports for coordinators
-    if (programData.coordinatorIds && programData.coordinatorIds.length > 0) {
-      setStudentReports(prev => {
-        const updated = { ...prev };
-        programData.coordinatorIds.forEach(studentId => {
-          const existingReport = updated[studentId];
-          const coordinatedProgram = {
-            id: newProgram.id,
-            title: newProgram.title,
-            description: newProgram.description,
-            date: newProgram.date,
-            time: newProgram.time,
-            venue: newProgram.venue,
-            createdAt: newProgram.createdAt,
-          };
-          
-          if (existingReport) {
-            updated[studentId] = {
-              ...existingReport,
-              coordinatedPrograms: [coordinatedProgram, ...existingReport.coordinatedPrograms],
-            };
-          } else {
-            updated[studentId] = {
-              activities: [],
-              coordinatedPrograms: [coordinatedProgram],
-            };
-          }
-        });
-        return updated;
+
+    const persistProgram = (program: Program) => {
+      const normalizedProgram = normalizeProgram({
+        ...program,
+        updatedAt: program.updatedAt || new Date().toISOString(),
       });
-    }
+      setPrograms(prev => [normalizedProgram, ...prev]);
+      addProgramToCoordinatorReports(normalizedProgram, normalizedProgram.coordinatorIds || []);
+    };
+
+    void nssApi
+      .createProgram(programData)
+      .then(createdProgram => {
+        persistProgram(createdProgram);
+      })
+      .catch(error => {
+        console.error('Failed to create program via API, using local fallback', error);
+        persistProgram(fallbackProgram);
+      });
   };
 
-  const handleEditProgram = (id: string, programData: Omit<Program, 'id' | 'createdAt' | 'updatedAt'>) => {
+  const handleEditProgram = async (id: string, programData: Omit<Program, 'id' | 'createdAt' | 'updatedAt'>) => {
     // Get the old program to compare coordinators
     const oldProgram = programs.find(p => p.id === id);
     
+    try {
+      // Update program via API (syncs with Prisma)
+      await nssApi.updateProgram(id, programData);
+    } catch (error) {
+      console.error('Failed to update program via API:', error);
+    }
+    
+    // Update local state
     setPrograms(prev => prev.map(program => 
       program.id === id 
         ? { ...program, ...programData, updatedAt: new Date().toISOString() }
@@ -315,11 +428,35 @@ function App() {
     }
   };
 
-  const handleDeleteProgram = (id: string) => {
-    setPrograms(prev => prev.filter(program => program.id !== id));
+  const handleDeleteProgram = async (id: string) => {
+    // Get the program to remove from coordinator reports
+    const program = programs.find(p => p.id === id);
+    
+    try {
+      // Delete program via API (syncs with Prisma)
+      await nssApi.deleteProgram(id);
+    } catch (error) {
+      console.error('Failed to delete program via API:', error);
+    }
+    
+    // Update local state regardless
+    setPrograms(prev => prev.filter(p => p.id !== id));
+    
+    // Remove from coordinator reports
+    if (program?.coordinatorIds) {
+      removeProgramFromCoordinatorReports(id, program.coordinatorIds);
+    }
   };
 
-  const handleAddParticipants = (programId: string, studentIds: string[]) => {
+  const handleAddParticipants = async (programId: string, studentIds: string[]) => {
+    try {
+      // Update program participants via API (syncs with Prisma)
+      await nssApi.updateProgramParticipants(programId, studentIds);
+    } catch (error) {
+      console.error('Failed to update program participants via API:', error);
+    }
+    
+    // Update local state
     setPrograms(prev => prev.map(program => 
       program.id === programId 
         ? { ...program, participantIds: studentIds, updatedAt: new Date().toISOString() }
@@ -327,44 +464,103 @@ function App() {
     ));
   };
 
-  const handleAddStudent = (studentData: Omit<RegisteredStudent, 'createdAt'>) => {
-    const newStudent: RegisteredStudent = {
-      ...studentData,
-      createdAt: new Date().toISOString(),
-    };
-    setRegisteredStudents(prev => [...prev, newStudent]);
+  const handleAddStudent = async (studentData: Omit<RegisteredStudent, 'createdAt'>) => {
+    try {
+      // Create student via API (syncs with Prisma)
+      const createdStudent = await nssApi.createStudent(studentData);
+      setRegisteredStudents(prev => [...prev, createdStudent]);
+      
+      // Show the student their login ID
+      alert(`Student created successfully!\n\nLogin ID: ${createdStudent.id}\nPassword: ${studentData.password}\n\nPlease save these credentials.`);
+    } catch (error) {
+      console.error('Failed to create student via API:', error);
+      // Fallback to local creation
+      const newStudent: RegisteredStudent = {
+        ...studentData,
+        createdAt: new Date().toISOString(),
+      };
+      setRegisteredStudents(prev => [...prev, newStudent]);
+      alert(`Student created locally.\n\nLogin ID: ${newStudent.id}\nPassword: ${studentData.password}`);
+    }
   };
 
-  const handleAddCoordinator = (coordinatorData: Omit<Coordinator, 'id' | 'createdAt'>) => {
-    const newCoordinator: Coordinator = {
-      ...coordinatorData,
-      id: 'COORD' + (Math.floor(Math.random() * 9000) + 1000).toString(), // Generate COORD + 4-digit ID
-      createdAt: new Date().toISOString(),
-    };
-    setCoordinators(prev => [...prev, newCoordinator]);
+  const handleAddCoordinator = async (coordinatorData: Omit<Coordinator, 'id' | 'createdAt'>) => {
+    try {
+      // Create coordinator via API (syncs with Prisma)
+      const createdCoordinator = await nssApi.createCoordinator(coordinatorData);
+      setCoordinators(prev => [...prev, createdCoordinator]);
+      
+      // Show the coordinator their login ID
+      alert(`Coordinator created successfully!\n\nLogin ID: ${createdCoordinator.id}\nPassword: ${coordinatorData.password}\n\nPlease save these credentials.`);
+    } catch (error) {
+      console.error('Failed to create coordinator via API:', error);
+      // Fallback to local creation with generated ID
+      const newCoordinator: Coordinator = {
+        ...coordinatorData,
+        id: 'COORD' + (Math.floor(Math.random() * 9000) + 1000).toString(),
+        createdAt: new Date().toISOString(),
+      };
+      setCoordinators(prev => [...prev, newCoordinator]);
+      alert(`Coordinator created locally.\n\nLogin ID: ${newCoordinator.id}\nPassword: ${coordinatorData.password}`);
+    }
   };
 
-  const handleToggleCoordinatorAccess = (id: string) => {
-    setCoordinators(prev => prev.map(coordinator =>
-      coordinator.id === id
-        ? { ...coordinator, isActive: !coordinator.isActive }
-        : coordinator
+  const handleToggleCoordinatorAccess = async (id: string) => {
+    const coordinator = coordinators.find(c => c.id === id);
+    if (!coordinator) return;
+    
+    const newIsActive = !coordinator.isActive;
+    
+    try {
+      // Update coordinator via API (syncs with Prisma)
+      await nssApi.updateCoordinator(id, { isActive: newIsActive });
+    } catch (error) {
+      console.error('Failed to toggle coordinator access via API:', error);
+    }
+    
+    // Update local state regardless
+    setCoordinators(prev => prev.map(c =>
+      c.id === id ? { ...c, isActive: newIsActive } : c
     ));
   };
 
-  const handleEditStudent = (id: string, updates: { name: string; department: string; password: string; profileImageUrl?: string }) => {
+  const handleEditStudent = async (id: string, updates: { name: string; department: string; password: string; profileImageUrl?: string }) => {
+    try {
+      // Update student via API (syncs with Prisma)
+      await nssApi.updateStudent(id, updates);
+    } catch (error) {
+      console.error('Failed to update student via API:', error);
+    }
+    
+    // Update local state regardless
     setRegisteredStudents(prev => prev.map(student =>
       student.id === id ? { ...student, ...updates } : student
     ));
   };
 
-  const handleEditCoordinator = (id: string, updates: { name: string; department: string; password: string }) => {
+  const handleEditCoordinator = async (id: string, updates: { name: string; department: string; password: string }) => {
+    try {
+      // Update coordinator via API (syncs with Prisma)
+      await nssApi.updateCoordinator(id, updates);
+    } catch (error) {
+      console.error('Failed to update coordinator via API:', error);
+    }
+    
+    // Update local state regardless
     setCoordinators(prev => prev.map(coordinator =>
       coordinator.id === id ? { ...coordinator, ...updates } : coordinator
     ));
   };
 
-  const handleDeleteStudent = (id: string) => {
+  const handleDeleteStudent = async (id: string) => {
+    try {
+      // Delete student via API (syncs with Prisma)
+      await nssApi.deleteStudent(id);
+    } catch (error) {
+      console.error('Failed to delete student via API:', error);
+    }
+    
+    // Update local state regardless
     setRegisteredStudents(prev => prev.filter(student => student.id !== id));
     // Also remove from all program participants
     setPrograms(prev => prev.map(program => ({
@@ -379,30 +575,63 @@ function App() {
     });
   };
 
-  const handleDeleteCoordinator = (id: string) => {
+  const handleDeleteCoordinator = async (id: string) => {
+    try {
+      // Delete coordinator via API (syncs with Prisma)
+      await nssApi.deleteCoordinator(id);
+    } catch (error) {
+      console.error('Failed to delete coordinator via API:', error);
+    }
+    
+    // Update local state regardless
     setCoordinators(prev => prev.filter(coordinator => coordinator.id !== id));
   };
 
-  const handleUpdateOfficerPassword = (newPassword: string) => {
-    setOfficerCredentials(prev => ({ ...prev, password: newPassword }));
+  const handleUpdateOfficerPassword = async (newPassword: string) => {
+    try {
+      // Update officer password via API (syncs with Prisma)
+      await nssApi.updateOfficer('officer', { id: 'officer', password: newPassword });
+    } catch (error) {
+      console.error('Failed to update officer password via API:', error);
+    }
+    
+    // Update local state
+    if (officerCredentials) {
+      setOfficerCredentials(prev => prev ? { ...prev, password: newPassword } : null);
+    }
   };
 
   // Department management functions
-  const handleAddDepartment = (name: string) => {
-    const newDepartment: Department = {
-      id: 'dept-' + Date.now(),
-      name,
-      isActive: true,
-      createdAt: new Date().toISOString(),
-    };
-    setDepartments(prev => [...prev, newDepartment]);
+  const handleAddDepartment = async (name: string) => {
+    try {
+      // Create department via API (syncs with Prisma)
+      const createdDepartment = await nssApi.createDepartment({ name });
+      setDepartments(prev => [...prev, createdDepartment]);
+    } catch (error) {
+      console.error('Failed to create department via API:', error);
+      // Fallback to local creation
+      const newDepartment: Department = {
+        id: 'dept-' + Date.now(),
+        name,
+        isActive: true,
+        createdAt: new Date().toISOString(),
+      };
+      setDepartments(prev => [...prev, newDepartment]);
+    }
   };
 
-  const handleEditDepartment = (id: string, newName: string) => {
+  const handleEditDepartment = async (id: string, newName: string) => {
     const oldDepartment = departments.find(d => d.id === id);
     if (!oldDepartment) return;
 
-    // Update department name
+    try {
+      // Update department via API (syncs with Prisma)
+      await nssApi.updateDepartment(id, { name: newName });
+    } catch (error) {
+      console.error('Failed to update department via API:', error);
+    }
+
+    // Update department name locally
     setDepartments(prev => prev.map(d => 
       d.id === id ? { ...d, name: newName } : d
     ));
@@ -415,9 +644,22 @@ function App() {
     ));
   };
 
-  const handleToggleDepartment = (id: string) => {
+  const handleToggleDepartment = async (id: string) => {
+    const department = departments.find(d => d.id === id);
+    if (!department) return;
+    
+    const newIsActive = !department.isActive;
+    
+    try {
+      // Update department via API (syncs with Prisma)
+      await nssApi.updateDepartment(id, { isActive: newIsActive });
+    } catch (error) {
+      console.error('Failed to toggle department via API:', error);
+    }
+    
+    // Update local state
     setDepartments(prev => prev.map(d => 
-      d.id === id ? { ...d, isActive: !d.isActive } : d
+      d.id === id ? { ...d, isActive: newIsActive } : d
     ));
   };
   const renderCurrentView = () => {
