@@ -19,6 +19,7 @@
   "dependencies": {
     "@fastify/cors": "^9.0.1",
     "@prisma/client": "^5.22.0",
+    "@prisma/extension-accelerate": "^1.2.1",
     "fastify": "^4.26.0"
   },
   "devDependencies": {
